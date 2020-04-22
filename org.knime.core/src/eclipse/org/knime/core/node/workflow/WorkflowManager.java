@@ -98,6 +98,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -6553,6 +6554,38 @@ public final class WorkflowManager extends NodeContainer
             }
         }
         return subclass.cast(nc);
+    }
+
+    /**
+     * Collects all nodes and their successors starting at the provided start nodes. If a stop condition is given and
+     * evaluates to <code>true</code> for a particular node, no more successors of the respective node will be added.
+     *
+     * @param startNodes the nodes to start adding nodes at (start nodes are included in the result, too)
+     * @param stopCondition an optional stop condition on nodes when to stop adding successors (the node this condition
+     *            evaluated on will be included in the result list)
+     * @param includePerfectSuccessorsOnly a perfect successor is a node whose predecessors are all included, too. If
+     *            this parameter is <code>true</code> only perfect successors will be included. If <code>false</code>
+     *            nodes will be included if they have at least one included predecessor.
+     * @param handleMetaNodeAsSingleNode
+     * @return the collection of collected node containers
+     * @throws IllegalArgumentException if one of start node ids couldn't be found in the workflow
+     *
+     * @since 4.2
+     */
+    public Collection<NodeContainer> getNodeContainers(final Set<NodeID> startNodes,
+        final Predicate<NodeContainer> stopCondition, final boolean includePerfectSuccessorsOnly,
+        final boolean handleMetaNodeAsSingleNode) {
+        try (WorkflowLock lock = lock()) {
+            Set<NodeID> nodes = new HashSet<>();
+            for (NodeID id : startNodes) {
+                if (!containsNodeContainer(id)) {
+                    throw new IllegalArgumentException("No such node ID: " + id);
+                }
+                m_workflow.getDepthFirstListOfNodeAndSuccessors(nodes, id, -1, stopCondition,
+                    includePerfectSuccessorsOnly, handleMetaNodeAsSingleNode);
+            }
+            return nodes.stream().map(this::getNodeContainer).collect(Collectors.toList());
+        }
     }
 
     /**
