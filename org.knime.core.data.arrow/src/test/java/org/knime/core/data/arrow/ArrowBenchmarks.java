@@ -18,7 +18,7 @@ import org.knime.core.data.row.RowWriteCursor;
 import org.knime.core.data.table.ReadTable;
 import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
-import org.knime.core.data.table.cache.TableCache;
+import org.knime.core.data.table.cache.CachedTableStore;
 import org.knime.core.data.table.store.TableStoreFactory;
 import org.knime.core.data.type.DoubleType;
 import org.knime.core.data.type.StringType;
@@ -54,14 +54,14 @@ public class ArrowBenchmarks {
 
 	private ColumnType<?, ?>[] m_schema = new ColumnType[] { DoubleType.INSTANCE, StringType.INSTANCE };
 
-	private TableCache m_store;
+	private CachedTableStore m_store;
 
 	private RowBatchFactory m_factory;
 
 	private TableStoreFactory m_format;
 
 	public TableStoreFactory createFormat() {
-		return new ArrowFormat(BATCH_SIZE);
+		return new ArrowTableStoreFactory(BATCH_SIZE);
 	}
 
 	public static Options jmhOptions(final String className) {
@@ -81,7 +81,7 @@ public class ArrowBenchmarks {
 	@Setup(Level.Iteration)
 	public void setupNextStore() throws IOException {
 		m_store = RowBatchUtils.cache(m_format.create(m_schema, createTmpFile(), null));
-		m_factory = m_format.createFactory(m_schema);
+		m_factory = m_store.createFactory();
 	}
 
 	@Setup(Level.Trial)
@@ -101,7 +101,7 @@ public class ArrowBenchmarks {
 
 	@Benchmark
 	public void newTablesBenchmark() throws Exception {
-		final WriteTable writeTable = TableUtils.createWriteTable(m_factory, m_store);
+		final WriteTable writeTable = TableUtils.createWriteTable(m_store);
 		try (RowWriteCursor writeCursor = writeTable.getCursor()) {
 			final DoubleWriteValue doubleWriteValue = (DoubleWriteValue) writeCursor.get(0);
 			final StringWriteValue stringWriteValue = (StringWriteValue) writeCursor.get(1);

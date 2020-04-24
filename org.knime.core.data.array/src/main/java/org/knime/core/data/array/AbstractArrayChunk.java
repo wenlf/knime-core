@@ -2,7 +2,7 @@ package org.knime.core.data.array;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-abstract class AbstractArray<A> implements Array {
+abstract class AbstractArrayChunk<A> implements ArrayChunk {
 
 	private final int m_capacity;
 	private final AtomicInteger m_ref = new AtomicInteger(1);
@@ -11,7 +11,7 @@ abstract class AbstractArray<A> implements Array {
 
 	protected final A m_array;
 
-	AbstractArray(A array, int capacity) {
+	AbstractArrayChunk(A array, int capacity) {
 		m_array = array;
 		m_capacity = capacity;
 	}

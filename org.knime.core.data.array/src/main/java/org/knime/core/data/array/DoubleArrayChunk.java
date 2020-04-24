@@ -2,10 +2,10 @@ package org.knime.core.data.array;
 
 import org.knime.core.data.type.DoubleChunk;
 
-class DoubleArrayData extends AbstractNativeArray<double[]> implements DoubleChunk {
+class DoubleArrayChunk extends AbstractNativeArrayChunk<double[]> implements DoubleChunk {
 
 	// Read case
-	public DoubleArrayData(int capacity) {
+	public DoubleArrayChunk(int capacity) {
 		super(new double[capacity], capacity);
 	}
 

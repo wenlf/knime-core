@@ -7,7 +7,6 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.complex.StructVector;
 import org.knime.core.data.ChunkFactory;
 import org.knime.core.data.column.ColumnChunk;
 import org.knime.core.data.column.ColumnType;
@@ -24,12 +23,12 @@ import org.knime.core.data.table.store.TableStoreFactory;
 import org.knime.core.data.type.DoubleChunk;
 import org.knime.core.data.type.StringChunk;
 
-public class ArrowFormat implements TableStoreFactory {
+public class ArrowTableStoreFactory implements TableStoreFactory {
 
 	private final int m_chunkSize;
 	private final BufferAllocator m_root;
 
-	public ArrowFormat(int chunkSize) {
+	public ArrowTableStoreFactory(int chunkSize) {
 		m_chunkSize = chunkSize;
 		m_root = new RootAllocator();
 	}
@@ -41,35 +40,10 @@ public class ArrowFormat implements TableStoreFactory {
 
 	@Override
 	public TableStore create(ColumnType<?, ?>[] schema, File file, TableStoreConfig hints) {
-		return new ArrowRecordStore(file, schema, hints);
+		return new ArrowTableStore(file, schema, hints);
 	}
 
-	@Override
-	public RowBatchFactory createFactory(ColumnType<?, ?>[] schema) {
-		// TODO change interface... see 'AbstractRecordFactory'
-		// TODO use child allocator per store!!
-		return new AbstractRowBatchFactory(schema, m_chunkSize) {
-
-			@Override
-			public ChunkFactory<StringChunk> createStringDataFactory(int chunkSize) {
-				return () -> new VarCharVectorData(m_root, chunkSize);
-			}
-
-			@Override
-			public ChunkFactory<DoubleChunk> createDoubleDataFactory(int chunkSize) {
-				return () -> new Float8VectorData(m_root, chunkSize);
-			}
-
-			@Override
-			public ChunkFactory<? extends ColumnChunk> createLogicalTypeDataFactory(ColumnType<?, ?>[] childrenTypes,
-					int chunkSize) {
-				return null;
-			}
-
-		};
-	}
-
-	class ArrowRecordStore implements TableStore {
+	class ArrowTableStore implements TableStore {
 
 		private final ColumnType<?, ?>[] m_types;
 
@@ -77,7 +51,7 @@ public class ArrowFormat implements TableStoreFactory {
 		private final BufferAllocator m_childAllocator = m_root.newChildAllocator("ArrowStore", 0, m_root.getLimit());
 		private final File m_file;
 
-		ArrowRecordStore(File file, final ColumnType<?, ?>[] types, TableStoreConfig hints) {
+		ArrowTableStore(File file, final ColumnType<?, ?>[] types, TableStoreConfig hints) {
 			m_types = types;
 			m_file = file;
 		}
@@ -94,7 +68,7 @@ public class ArrowFormat implements TableStoreFactory {
 						final ColumnChunk[] recordData = record.getRecordData();
 						final FieldVector[] vectorData = new FieldVector[recordData.length];
 						for (int i = 0; i < vectorData.length; i++) {
-							vectorData[i] = ((FieldVectorData<?>) recordData[i]).get();
+							vectorData[i] = ((FieldVectorChunk<?>) recordData[i]).get();
 						}
 						m_writer.write(vectorData);
 					} catch (IOException e) {
@@ -131,7 +105,7 @@ public class ArrowFormat implements TableStoreFactory {
 						final FieldVector[] vectors = m_reader.read(chunkIndex);
 						final ColumnChunk[] data = new ColumnChunk[vectors.length];
 						for (int i = 0; i < data.length; i++) {
-							data[i] = new Float8VectorData((Float8Vector) vectors[0]);
+							data[i] = new Float8VectorChunk((Float8Vector) vectors[0]);
 						}
 						return new DefaultRowBatch(data);
 					} catch (IOException e) {
@@ -160,6 +134,31 @@ public class ArrowFormat implements TableStoreFactory {
 		@Override
 		public void close() throws Exception {
 			m_childAllocator.close();
+		}
+
+		@Override
+		public RowBatchFactory createFactory() {
+			// TODO change interface... see 'AbstractRecordFactory'
+			// TODO use child allocator per store!!
+			return new AbstractRowBatchFactory(m_types, m_chunkSize) {
+
+				@Override
+				public ChunkFactory<StringChunk> createStringDataFactory(int chunkSize) {
+					return () -> new VarCharVectorChunk(m_root, chunkSize);
+				}
+
+				@Override
+				public ChunkFactory<DoubleChunk> createDoubleDataFactory(int chunkSize) {
+					return () -> new Float8VectorChunk(m_root, chunkSize);
+				}
+
+				@Override
+				public ChunkFactory<? extends ColumnChunk> createLogicalTypeDataFactory(
+						ColumnType<?, ?>[] childrenTypes, int chunkSize) {
+					return null;
+				}
+
+			};
 		}
 	}
 }

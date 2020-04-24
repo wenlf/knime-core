@@ -5,19 +5,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 
-abstract class AbstractFieldVectorData<F extends FieldVector> implements FieldVectorData<F> {
+abstract class AbstractFieldVectorChunk<F extends FieldVector> implements FieldVectorChunk<F> {
 
 	protected final F m_vector;
 
 	private final AtomicInteger m_refCounter = new AtomicInteger(1);
 
-	AbstractFieldVectorData(BufferAllocator allocator, int chunkSize) {
+	AbstractFieldVectorChunk(BufferAllocator allocator, int chunkSize) {
 		m_vector = create(allocator, chunkSize);
 	}
 
 	protected abstract F create(BufferAllocator allocator, int chunkSize);
 
-	AbstractFieldVectorData(F vector) {
+	AbstractFieldVectorChunk(F vector) {
 		m_vector = vector;
 	}
 

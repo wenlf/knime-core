@@ -4,7 +4,7 @@ package org.knime.core.data.array;
 import org.knime.core.data.Access;
 
 // TODO composition over inheritance? :-(
-class AbstractNativeArrayAccess<A extends Array> //
+class AbstractNativeAccess<A extends ArrayChunk> //
 		implements Access<A> {
 
 	protected int m_index = -1;

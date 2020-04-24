@@ -3,7 +3,7 @@ package org.knime.core.data.row;
 import org.knime.core.data.column.ColumnChunk;
 import org.knime.core.data.column.ColumnChunkAccess;
 import org.knime.core.data.column.ColumnType;
-import org.knime.core.data.table.cache.TableCache;
+import org.knime.core.data.table.cache.CachedTableStore;
 import org.knime.core.data.table.store.TableStore;
 
 public final class RowBatchUtils {
@@ -21,7 +21,7 @@ public final class RowBatchUtils {
 		return new RowBatchAccess(accesses);
 	}
 
-	public static TableCache cache(final TableStore store) {
-		return new TableCache(store);
+	public static CachedTableStore cache(final TableStore store) {
+		return new CachedTableStore(store);
 	}
 }

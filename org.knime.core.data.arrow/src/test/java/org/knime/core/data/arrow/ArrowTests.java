@@ -20,7 +20,7 @@ import org.knime.core.data.row.RowWriteCursor;
 import org.knime.core.data.table.ReadTable;
 import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
-import org.knime.core.data.table.cache.TableCache;
+import org.knime.core.data.table.cache.CachedTableStore;
 import org.knime.core.data.table.store.TableStore;
 import org.knime.core.data.table.store.TableStoreFactory;
 import org.knime.core.data.type.DoubleAccess;
@@ -39,7 +39,7 @@ public class ArrowTests {
 	public static final int RECORDBATCH_SIZE = 25;
 
 	// format
-	public static final TableStoreFactory FORMAT = new ArrowFormat(RECORDBATCH_SIZE);
+	public static final TableStoreFactory FORMAT = new ArrowTableStoreFactory(RECORDBATCH_SIZE);
 
 	// in bytes
 	public static final long OFFHEAP_SIZE = 2000_000_000;
@@ -64,7 +64,7 @@ public class ArrowTests {
 	public void doubleData() {
 		final RootAllocator root = new RootAllocator();
 
-		DoubleChunk data = new Float8VectorData(root, 3);
+		DoubleChunk data = new Float8VectorChunk(root, 3);
 		DoubleAccess access = new DoubleAccess();
 		access.update(data);
 
@@ -101,7 +101,7 @@ public class ArrowTests {
 
 	@Test
 	public void identityTestReadWriteCache() throws Exception {
-		try (TableCache store = RowBatchUtils.cache(FORMAT.create(SCHEMA, createTmpFile(), null))) {
+		try (CachedTableStore store = RowBatchUtils.cache(FORMAT.create(SCHEMA, createTmpFile(), null))) {
 			identityTestSingleDoubleColumn(store);
 		}
 	}
@@ -109,9 +109,9 @@ public class ArrowTests {
 	@Test
 	public void testFlush() throws Exception {
 
-		try (TableCache cache = RowBatchUtils.cache(FORMAT.create(SCHEMA, createTmpFile(), null))) {
+		try (CachedTableStore cache = RowBatchUtils.cache(FORMAT.create(SCHEMA, createTmpFile(), null))) {
 			// TODO create writer hints (e.g. dictionary encoding for column X)
-			final WriteTable writeTable = TableUtils.createWriteTable(FORMAT.createFactory(SCHEMA), cache);
+			final WriteTable writeTable = TableUtils.createWriteTable(cache);
 			try (RowWriteCursor writeCursor = writeTable.getCursor()) {
 				final DoubleWriteValue doubleWriteValue = (DoubleWriteValue) writeCursor.get(0);
 				for (int i = 0; i < NUM_ROWS; i++) {
@@ -176,7 +176,7 @@ public class ArrowTests {
 
 	private void identityTestSingleDoubleColumn(TableStore store) throws Exception {
 		// TODO create writer hints (e.g. dictionary encoding for column X)
-		final WriteTable writeTable = TableUtils.createWriteTable(FORMAT.createFactory(SCHEMA), store);
+		final WriteTable writeTable = TableUtils.createWriteTable(store);
 		try (RowWriteCursor writeCursor = writeTable.getCursor()) {
 			final DoubleWriteValue doubleWriteValue = (DoubleWriteValue) writeCursor.get(0);
 			for (int i = 0; i < 5; i++) {

@@ -12,18 +12,18 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VarCharVector;
 import org.knime.core.data.type.StringChunk;
 
-public class VarCharVectorData extends AbstractFieldVectorData<VarCharVector> implements StringChunk {
+public class VarCharVectorChunk extends AbstractFieldVectorChunk<VarCharVector> implements StringChunk {
 
 	private final CharsetDecoder DECODER = Charset.forName("UTF-8").newDecoder()
 			.onMalformedInput(CodingErrorAction.REPLACE).onUnmappableCharacter(CodingErrorAction.REPLACE);
 	private final CharsetEncoder ENCODER = Charset.forName("UTF-8").newEncoder()
 			.onMalformedInput(CodingErrorAction.REPLACE).onUnmappableCharacter(CodingErrorAction.REPLACE);
 
-	VarCharVectorData(BufferAllocator allocator, int chunkSize) {
+	VarCharVectorChunk(BufferAllocator allocator, int chunkSize) {
 		super(allocator, chunkSize);
 	}
 
-	VarCharVectorData(VarCharVector vector) {
+	VarCharVectorChunk(VarCharVector vector) {
 		super(vector);
 	}
 

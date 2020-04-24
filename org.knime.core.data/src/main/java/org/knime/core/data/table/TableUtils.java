@@ -1,7 +1,6 @@
 package org.knime.core.data.table;
 
 import org.knime.core.data.column.ColumnType;
-import org.knime.core.data.row.RowBatchFactory;
 import org.knime.core.data.row.RowBatchReaderConfig;
 import org.knime.core.data.row.RowBatchUtils;
 import org.knime.core.data.row.RowReadCursor;
@@ -11,11 +10,11 @@ import org.knime.core.data.table.store.TableStore;
 
 public class TableUtils {
 
-	public static WriteTable createWriteTable(RowBatchFactory factory, TableStore store) {
+	public static WriteTable createWriteTable(TableStore store) {
 		return new WriteTable() {
 
 			private final ColumnType<?, ?>[] m_types = store.getColumnTypes();
-			private final RowWriteCursor m_cursor = new RowWriteCursor(factory, store.getWriter(),
+			private final RowWriteCursor m_cursor = new RowWriteCursor(store.createFactory(), store.getWriter(),
 					RowBatchUtils.createAccess(m_types));
 
 			@Override

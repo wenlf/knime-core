@@ -12,11 +12,11 @@ import org.knime.core.data.table.store.TableStore;
 import org.knime.core.data.table.store.TableStoreConfig;
 import org.knime.core.data.table.store.TableStoreFactory;
 
-public class ArrayFormat implements TableStoreFactory {
+public class ArrayTableStoreFactory implements TableStoreFactory {
 
 	private int m_chunkSize;
 
-	public ArrayFormat(int chunkSize) {
+	public ArrayTableStoreFactory(int chunkSize) {
 		m_chunkSize = chunkSize;
 	}
 
@@ -26,14 +26,14 @@ public class ArrayFormat implements TableStoreFactory {
 	}
 
 	@Override
-	public RowBatchFactory createFactory(ColumnType<?, ?>[] schema) {
-		// TODO change interface... see 'AbstractRecordFactory'
-		return new ArrayFormatRecordFactory(schema, m_chunkSize);
-	}
-
-	@Override
-	public TableStore create(ColumnType<?, ?>[] schema, File file, TableStoreConfig hints) {
+	public TableStore create(ColumnType<?, ?>[] types, File file, TableStoreConfig hints) {
 		return new TableStore() {
+
+			@Override
+			public RowBatchFactory createFactory() {
+				// TODO change interface... see 'AbstractRecordFactory'
+				return new ArrayRowBatchFactory(types, m_chunkSize);
+			}
 
 			@Override
 			public void close() throws Exception {
@@ -78,7 +78,7 @@ public class ArrayFormat implements TableStoreFactory {
 
 			@Override
 			public ColumnType<?, ?>[] getColumnTypes() {
-				return schema;
+				return types;
 			}
 		};
 	}

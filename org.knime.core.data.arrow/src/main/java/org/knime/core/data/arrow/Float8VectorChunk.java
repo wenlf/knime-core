@@ -4,13 +4,13 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.Float8Vector;
 import org.knime.core.data.type.DoubleChunk;
 
-public class Float8VectorData extends AbstractFieldVectorData<Float8Vector> implements DoubleChunk {
+public class Float8VectorChunk extends AbstractFieldVectorChunk<Float8Vector> implements DoubleChunk {
 
-	Float8VectorData(BufferAllocator allocator, int chunkSize) {
+	Float8VectorChunk(BufferAllocator allocator, int chunkSize) {
 		super(allocator, chunkSize);
 	}
 
-	Float8VectorData(Float8Vector vector) {
+	Float8VectorChunk(Float8Vector vector) {
 		super(vector);
 	}
 

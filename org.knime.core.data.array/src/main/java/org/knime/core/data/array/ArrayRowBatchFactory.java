@@ -7,20 +7,20 @@ import org.knime.core.data.row.AbstractRowBatchFactory;
 import org.knime.core.data.type.DoubleChunk;
 import org.knime.core.data.type.StringChunk;
 
-public class ArrayFormatRecordFactory extends AbstractRowBatchFactory {
+public class ArrayRowBatchFactory extends AbstractRowBatchFactory {
 
-	public ArrayFormatRecordFactory(ColumnType<?, ?>[] types, int chunkSize) {
+	public ArrayRowBatchFactory(ColumnType<?, ?>[] types, int chunkSize) {
 		super(types, chunkSize);
 	}
 
 	@Override
 	public ChunkFactory<StringChunk> createStringDataFactory(int chunkSize) {
-		return () -> new StringArrayData(chunkSize);
+		return () -> new StringArrayChunk(chunkSize);
 	}
 
 	@Override
 	public ChunkFactory<DoubleChunk> createDoubleDataFactory(int chunkSize) {
-		return () -> new DoubleArrayData(chunkSize);
+		return () -> new DoubleArrayChunk(chunkSize);
 	}
 
 	@Override

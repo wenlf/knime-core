@@ -3,10 +3,10 @@ package org.knime.core.data.array;
 import org.knime.core.data.type.StringChunk;
 
 // TODO we may want to store sparse arrays etc differently.
-class StringArrayData extends AbstractArray<String[]> implements StringChunk {
+class StringArrayChunk extends AbstractArrayChunk<String[]> implements StringChunk {
 
 	// Read case
-	public StringArrayData(int capacity) {
+	public StringArrayChunk(int capacity) {
 		super(new String[capacity], capacity);
 	}
 

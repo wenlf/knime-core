@@ -1,9 +1,9 @@
 package org.knime.core.data.array;
 
-class AbstractNativeArray<A> extends AbstractArray<A> {
+class AbstractNativeArrayChunk<A> extends AbstractArrayChunk<A> {
 	private long[] m_isMissing;
 
-	protected AbstractNativeArray(A array, int capacity) {
+	protected AbstractNativeArrayChunk(A array, int capacity) {
 		super(array, capacity);
 		m_isMissing = new long[((int) capacity / 64) + 1];
 	}

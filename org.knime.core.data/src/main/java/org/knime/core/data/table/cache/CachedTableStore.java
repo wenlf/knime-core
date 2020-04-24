@@ -11,6 +11,7 @@ import org.knime.core.data.column.ColumnChunk;
 import org.knime.core.data.column.ColumnType;
 import org.knime.core.data.row.DefaultRowBatch;
 import org.knime.core.data.row.RowBatch;
+import org.knime.core.data.row.RowBatchFactory;
 import org.knime.core.data.row.RowBatchReader;
 import org.knime.core.data.row.RowBatchWriter;
 import org.knime.core.data.table.store.TableStore;
@@ -20,7 +21,7 @@ import org.knime.core.data.table.store.TableStore;
  TODO async pre-load here or in the actual cursor?
  TODO thread-safety
 */
-public class TableCache implements TableStore, Flushable {
+public class CachedTableStore implements TableStore, Flushable {
 
 	// one cache for each column. use-case: two tables with different filters access
 	// same table.
@@ -37,10 +38,10 @@ public class TableCache implements TableStore, Flushable {
 	private int m_flushIndex = 0;
 
 	private TableStore m_delegate;
-	private TableReadCache m_readCache;
+	private CachedTableReadStore m_readCache;
 	private boolean m_finishedWriting = false;
 
-	public TableCache(final TableStore delegate) {
+	public CachedTableStore(final TableStore delegate) {
 		m_types = delegate.getColumnTypes();
 		m_delegate = delegate;
 		m_caches = new ArrayList<>();
@@ -49,7 +50,7 @@ public class TableCache implements TableStore, Flushable {
 		}
 
 		// read store.
-		m_readCache = new TableReadCache(delegate, m_caches);
+		m_readCache = new CachedTableReadStore(delegate, m_caches);
 
 		// Only one writer. Maybe a property of the delegate
 		m_writer = delegate.getWriter();
@@ -128,5 +129,12 @@ public class TableCache implements TableStore, Flushable {
 	public void close() throws Exception {
 		m_readCache.clear();
 		m_delegate.close();
+	}
+
+	@Override
+	public RowBatchFactory createFactory() {
+		// TODO anything smart we can do here? Track created data? reuse data? etc?
+		// Later...
+		return m_delegate.createFactory();
 	}
 }

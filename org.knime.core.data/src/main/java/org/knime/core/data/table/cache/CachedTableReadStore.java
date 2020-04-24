@@ -15,7 +15,7 @@ import org.knime.core.data.table.store.TableReadStore;
 // TODO interface for cache
 // TODO async pre flush?
 // TODO thread-safety
-public class TableReadCache implements TableReadStore, AutoCloseable {
+public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 
 	// one cache for each column. use-case: two tables with different filters access
 	// same table.
@@ -26,7 +26,7 @@ public class TableReadCache implements TableReadStore, AutoCloseable {
 
 	private RowBatchReader m_reader;
 
-	TableReadCache(final TableReadStore delegate, final List<Map<Integer, ColumnChunk>> caches) {
+	CachedTableReadStore(final TableReadStore delegate, final List<Map<Integer, ColumnChunk>> caches) {
 		m_caches = caches;
 
 		// TODO we create more readers for parallel reading.
