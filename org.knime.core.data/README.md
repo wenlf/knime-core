@@ -9,16 +9,19 @@
 ## TODOs
 
 ### API design of org.knime.data.store
-- [X] Arrow Package (encapsulate store and cache)
-- [X] Test Life-cycle management (close() vs. destroy() vs. ... finishWriting() 'can I read before I've serialized the entire table')
-- [X] MultiVecValue & Custom data types (e.g. Date&Time, Text, Struct, PNG Images). 
-- [ ] Concept for pre-buffering in native types or completely skip arrow (performance loss with non-primitives)
-- [ ] Test Thread-safety (multi-read, multi-write?, cache, ref counting).  Also try locking per partition.
-- [ ] Exception Handling & Logging
+- [ ] MB: Test Life-cycle management (close() vs. destroy() vs. ... finishWriting() 'can I read before I've serialized the entire table')
+- [ ] MB: Thread-safety & Cache (multi-read, multi-write?, cache, ref counting  -> check how does arrow do it?).
+- [ ] CD: MultiVecValue & Custom data types (e.g. Date&Time, Text, Struct, PNG Images). 
+- [ ] CD: String, Double, Long, Int, LocalDateTimeCell, SerializableCell
+- [ ] CD: Complex data types (DataCell)
+- [ ] CD: Domain
+--------------
+- [ ] FileStoreCell, BlobCell
 - [ ] More types: DictType for categorical variables, NativeStructs?, Collections, ...
+- [ ] Exception Handling & Logging
+- [ ] Concept for pre-buffering in native types or completely skip arrow (performance loss with non-primitives)
 - [ ] Avoid data-copying in case of RowFilter (with efficient copy -> chunk-wise copy or so...). Create new table which only fulfills condition.
 - [ ] Support for DataCellserializers. Forseeable problem: avoid constant serialization and deserialization into byte[]
-- [ ] DataCell[] as column backend?
 - [ ] Native -> Arrow layering?
 - [ ] Parquet Backend (either adapt Marc's implementation to be KNIME independent or https://github.com/apache/arrow/pull/5719 or https://github.com/apache/parquet-mr/tree/master/parquet-arrow).
 - [ ] Add TableFilter API (limit number of read rows from disc / limit number of read columns from disc)
