@@ -24,7 +24,6 @@ import org.knime.core.data.table.cache.CachedTableStore;
 import org.knime.core.data.table.store.TableStore;
 import org.knime.core.data.table.store.TableStoreFactory;
 import org.knime.core.data.type.DoubleAccess;
-import org.knime.core.data.type.DoubleChunk;
 import org.knime.core.data.type.DoubleType;
 import org.knime.core.data.value.DoubleReadValue;
 import org.knime.core.data.value.DoubleWriteValue;
@@ -64,7 +63,8 @@ public class ArrowTests {
 	public void doubleData() {
 		final RootAllocator root = new RootAllocator();
 
-		DoubleChunk data = new Float8VectorChunk(root, 3);
+		Float8VectorChunk data = new Float8VectorChunk(root);
+		data.allocateNew(3);
 		DoubleAccess access = new DoubleAccess();
 		access.update(data);
 

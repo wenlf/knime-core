@@ -19,8 +19,8 @@ public class VarCharVectorChunk extends AbstractFieldVectorChunk<VarCharVector> 
 	private final CharsetEncoder ENCODER = Charset.forName("UTF-8").newEncoder()
 			.onMalformedInput(CodingErrorAction.REPLACE).onUnmappableCharacter(CodingErrorAction.REPLACE);
 
-	VarCharVectorChunk(BufferAllocator allocator, int chunkSize) {
-		super(allocator, chunkSize);
+	VarCharVectorChunk(BufferAllocator allocator) {
+		super(allocator);
 	}
 
 	VarCharVectorChunk(VarCharVector vector) {
@@ -52,10 +52,14 @@ public class VarCharVectorChunk extends AbstractFieldVectorChunk<VarCharVector> 
 	}
 
 	@Override
-	protected VarCharVector create(BufferAllocator allocator, int chunkSize) {
+	protected VarCharVector create(BufferAllocator allocator) {
 		final VarCharVector vector = new VarCharVector("VarCharVector", allocator);
-		vector.allocateNew(64l * chunkSize, chunkSize);
 		return vector;
+	}
+
+	@Override
+	public void allocateNew(int chunkSize) {
+		m_vector.allocateNew(64l * chunkSize, chunkSize);
 	}
 
 }

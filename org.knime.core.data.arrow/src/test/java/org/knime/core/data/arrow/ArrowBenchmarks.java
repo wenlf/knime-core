@@ -10,7 +10,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 import org.knime.core.data.column.ColumnType;
-import org.knime.core.data.row.RowBatchFactory;
 import org.knime.core.data.row.RowBatchReaderConfig;
 import org.knime.core.data.row.RowBatchUtils;
 import org.knime.core.data.row.RowReadCursor;
@@ -56,8 +55,6 @@ public class ArrowBenchmarks {
 
 	private CachedTableStore m_store;
 
-	private RowBatchFactory m_factory;
-
 	private TableStoreFactory m_format;
 
 	public TableStoreFactory createFormat() {
@@ -81,7 +78,6 @@ public class ArrowBenchmarks {
 	@Setup(Level.Iteration)
 	public void setupNextStore() throws IOException {
 		m_store = RowBatchUtils.cache(m_format.create(m_schema, createTmpFile(), null));
-		m_factory = m_store.createFactory();
 	}
 
 	@Setup(Level.Trial)

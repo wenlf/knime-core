@@ -11,11 +11,11 @@ abstract class AbstractFieldVectorChunk<F extends FieldVector> implements FieldV
 
 	private final AtomicInteger m_refCounter = new AtomicInteger(1);
 
-	AbstractFieldVectorChunk(BufferAllocator allocator, int chunkSize) {
-		m_vector = create(allocator, chunkSize);
+	AbstractFieldVectorChunk(BufferAllocator allocator) {
+		m_vector = create(allocator);
 	}
 
-	protected abstract F create(BufferAllocator allocator, int chunkSize);
+	protected abstract F create(BufferAllocator allocator);
 
 	AbstractFieldVectorChunk(F vector) {
 		m_vector = vector;

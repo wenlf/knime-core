@@ -7,10 +7,8 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
-import org.knime.core.data.ChunkFactory;
 import org.knime.core.data.column.ColumnChunk;
 import org.knime.core.data.column.ColumnType;
-import org.knime.core.data.row.AbstractRowBatchFactory;
 import org.knime.core.data.row.DefaultRowBatch;
 import org.knime.core.data.row.RowBatch;
 import org.knime.core.data.row.RowBatchFactory;
@@ -20,8 +18,6 @@ import org.knime.core.data.row.RowBatchWriter;
 import org.knime.core.data.table.store.TableStore;
 import org.knime.core.data.table.store.TableStoreConfig;
 import org.knime.core.data.table.store.TableStoreFactory;
-import org.knime.core.data.type.DoubleChunk;
-import org.knime.core.data.type.StringChunk;
 
 public class ArrowTableStoreFactory implements TableStoreFactory {
 
@@ -140,25 +136,7 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 		public RowBatchFactory createFactory() {
 			// TODO change interface... see 'AbstractRecordFactory'
 			// TODO use child allocator per store!!
-			return new AbstractRowBatchFactory(m_types, m_chunkSize) {
-
-				@Override
-				public ChunkFactory<StringChunk> createStringDataFactory(int chunkSize) {
-					return () -> new VarCharVectorChunk(m_root, chunkSize);
-				}
-
-				@Override
-				public ChunkFactory<DoubleChunk> createDoubleDataFactory(int chunkSize) {
-					return () -> new Float8VectorChunk(m_root, chunkSize);
-				}
-
-				@Override
-				public ChunkFactory<? extends ColumnChunk> createLogicalTypeDataFactory(
-						ColumnType<?, ?>[] childrenTypes, int chunkSize) {
-					return null;
-				}
-
-			};
+			return new ArrowRowBatchFactory(m_types, m_root, m_chunkSize);
 		}
 	}
 }

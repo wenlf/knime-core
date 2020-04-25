@@ -6,8 +6,8 @@ import org.knime.core.data.type.DoubleChunk;
 
 public class Float8VectorChunk extends AbstractFieldVectorChunk<Float8Vector> implements DoubleChunk {
 
-	Float8VectorChunk(BufferAllocator allocator, int chunkSize) {
-		super(allocator, chunkSize);
+	Float8VectorChunk(BufferAllocator allocator) {
+		super(allocator);
 	}
 
 	Float8VectorChunk(Float8Vector vector) {
@@ -20,9 +20,8 @@ public class Float8VectorChunk extends AbstractFieldVectorChunk<Float8Vector> im
 	}
 
 	@Override
-	protected Float8Vector create(BufferAllocator allocator, int chunkSize) {
+	protected Float8Vector create(BufferAllocator allocator) {
 		final Float8Vector vector = new Float8Vector("Float8Vector", allocator);
-		vector.allocateNew(chunkSize);
 		return vector;
 	}
 
@@ -34,6 +33,11 @@ public class Float8VectorChunk extends AbstractFieldVectorChunk<Float8Vector> im
 	@Override
 	public void setDouble(int index, double value) {
 		m_vector.set(index, value);
+	}
+
+	@Override
+	public void allocateNew(int chunkSize) {
+		m_vector.allocateNew(chunkSize);
 	}
 
 }

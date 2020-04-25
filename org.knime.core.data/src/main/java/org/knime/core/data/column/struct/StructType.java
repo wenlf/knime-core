@@ -7,5 +7,5 @@ import org.knime.core.data.column.ColumnType;
  * DateTime
  */
 public interface StructType extends ColumnType<StructChunk, StructChunkAccess<StructChunk>> {
-	ColumnType<?, ?>[] getChildrenTypes();
+	ColumnType<?, ?>[] getColumnTypes();
 }
