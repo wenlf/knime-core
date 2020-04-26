@@ -70,7 +70,7 @@ public class ArrowTests {
 
 		int tmp = 0;
 
-		DoubleWriteValue write = access.write();
+		DoubleWriteValue write = access;
 		for (int i = 0; i < data.getMaxCapacity(); i++) {
 			access.fwd();
 			write.setDouble(i);
@@ -82,7 +82,7 @@ public class ArrowTests {
 		access.reset();
 		tmp = 0;
 
-		DoubleReadValue read = access.read();
+		DoubleReadValue read = access;
 		for (int i = 0; i < data.getNumValues(); i++) {
 			access.fwd();
 			assertEquals(i, read.getDouble(), 0.0000000000001);
