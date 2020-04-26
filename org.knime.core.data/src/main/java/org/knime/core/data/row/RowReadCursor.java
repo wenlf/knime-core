@@ -34,8 +34,10 @@ public final class RowReadCursor implements AutoCloseable {
 		m_access.fwd();
 	}
 
-	public ReadValue get(int index) {
-		return m_access.read(index);
+	// user can keep access while iterating over table
+	public <R extends ReadValue> R get(int index) {
+		return m_access.getReadValue(index);
+	}
 	}
 
 	public boolean canFwd() {

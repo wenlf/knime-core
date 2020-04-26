@@ -14,12 +14,18 @@ public class RowBatchAccess implements Access<RowBatch> {
 		m_accesses = accesses;
 	}
 
-	public ReadValue read(int index) {
-		return m_accesses[index].read();
+	public <R extends ReadValue> R getReadValue(int index) {
+		// TODO here we can throw and handle a class cast exception
+		@SuppressWarnings("unchecked")
+		final R read = (R) m_accesses[index];
+		return read;
 	}
 
-	public WriteValue getWriteValue(int index) {
-		return m_accesses[index].write();
+	public <W extends WriteValue> W getWriteValue(int index) {
+		// TODO here we can throw and handle a class cast exception
+		@SuppressWarnings("unchecked")
+		final W write = (W) m_accesses[index];
+		return write;
 	}
 
 	@Override

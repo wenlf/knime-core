@@ -31,7 +31,7 @@ public class RowWriteCursor implements AutoCloseable {
 		m_access.fwd();
 	}
 
-	public WriteValue get(int index) {
+	public <W extends WriteValue> W get(int index) {
 		return m_access.getWriteValue(index);
 	}
 
