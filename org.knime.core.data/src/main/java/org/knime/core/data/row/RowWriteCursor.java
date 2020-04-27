@@ -1,9 +1,12 @@
 package org.knime.core.data.row;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.knime.core.data.value.WriteValue;
 
 //TODO similar logic required later for columnar access...
-//TODO interface
+//TODO interface cursor, interface 'get', 'getRange' (late 'getSelection').
 public class RowWriteCursor implements AutoCloseable {
 
 	private final RowBatchWriter m_writer;
@@ -33,6 +36,30 @@ public class RowWriteCursor implements AutoCloseable {
 
 	public <W extends WriteValue> W get(int index) {
 		return m_access.getWriteValue(index);
+	}
+
+	// User can keep list while iterating over table
+	// TODO share code with RangeReadCursor
+	@SuppressWarnings("unchecked")
+	public <W extends WriteValue> WriteValueRange<W> getRange(int startIndex, int length) {
+		// TODO check bounds
+		return new WriteValueRange<W>() {
+			private final W[] m_accesses;
+			{
+				final List<W> accesses = new ArrayList<W>();
+				for (int i = startIndex; i < length; i++) {
+					accesses.add(m_access.getReadValue(i));
+				}
+				final W[] cast = (W[]) accesses.toArray();
+				m_accesses = cast;
+			}
+
+			// zero based index accesses
+			@Override
+			public W getWriteValue(int index) {
+				return m_accesses[index];
+			}
+		};
 	}
 
 	@Override

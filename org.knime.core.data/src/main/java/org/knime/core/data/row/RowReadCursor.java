@@ -1,5 +1,8 @@
 package org.knime.core.data.row;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.knime.core.data.value.ReadValue;
 
 //TODO similar logic required later for columnar access...
@@ -38,6 +41,29 @@ public final class RowReadCursor implements AutoCloseable {
 	public <R extends ReadValue> R get(int index) {
 		return m_access.getReadValue(index);
 	}
+
+	// User can keep list while iterating over table
+	// TODO share code with RangeReadCursor
+	@SuppressWarnings("unchecked")
+	public <R extends ReadValue> ReadValueRange<R> getRange(int startIndex, int length) {
+		// TODO check bounds
+		return new ReadValueRange<R>() {
+			private final R[] m_accesses;
+			{
+				final List<R> accesses = new ArrayList<R>();
+				for (int i = startIndex; i < length; i++) {
+					accesses.add(m_access.getReadValue(i));
+				}
+				final R[] cast = (R[]) accesses.toArray();
+				m_accesses = cast;
+			}
+
+			// zero based index accesses
+			@Override
+			public R getReadValue(int index) {
+				return m_accesses[index];
+			}
+		};
 	}
 
 	public boolean canFwd() {
