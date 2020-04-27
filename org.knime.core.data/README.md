@@ -12,7 +12,7 @@
 - [ ] MB: Test Life-cycle management (close() vs. destroy() vs. ... finishWriting() 'can I read before I've serialized the entire table')
 - [ ] MB: Thread-safety & Cache (multi-read, multi-write?, cache, ref counting  -> check how does arrow do it?).
 - [X] CD: MultiVecValue & Custom data types (e.g. Date&Time, Text, Struct, PNG Images). 
-- [ ] CD: Fix arrow writer/reader
+- [X] CD: Fix arrow writer/reader
 - [ ] CD: NumericDomain (ordered list, per chunk, accessible before loading actual data)
 - [ ] CD: Benchmark and support wide-data
 - [ ] Nominal domain and fixed dictionary Encoding for Strings (encoding decision through spec by user)
