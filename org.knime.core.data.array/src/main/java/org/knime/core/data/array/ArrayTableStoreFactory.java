@@ -40,7 +40,7 @@ public class ArrayTableStoreFactory implements TableStoreFactory {
 			}
 
 			@Override
-			public RowBatchReader createReader() {
+			public RowBatchReader createReader(RowBatchReaderConfig config) {
 				return new RowBatchReader() {
 
 					@Override
@@ -49,7 +49,7 @@ public class ArrayTableStoreFactory implements TableStoreFactory {
 					}
 
 					@Override
-					public RowBatch read(int chunkIndex, RowBatchReaderConfig hints) {
+					public RowBatch read(int chunkIndex) {
 						return null;
 					}
 

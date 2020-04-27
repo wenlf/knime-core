@@ -33,7 +33,7 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 		m_caches = caches;
 
 		// TODO we create more readers for parallel reading.
-		m_types = delegate.getColumnSpec();
+		m_types = delegate.getColumnTypes();
 		m_delegate = delegate;
 	}
 
@@ -158,14 +158,15 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 			}
 		};
 	}
+	
+
+	@Override
+	public ColumnType<?, ?>[] getColumnTypes() {
+		return m_types;
+	}
 
 	@Override
 	public void close() throws Exception {
 		clear();
-	}
-
-	@Override
-	public ColumnType<?, ?>[] getColumnSpec() {
-		return m_types;
 	}
 }

@@ -139,10 +139,5 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 			// TODO use child allocator per store!!
 			return new ArrowRowBatchFactory(m_types, m_root, m_config.getInitialChunkSize());
 		}
-
-		@Override
-		public ColumnType<?, ?>[] getColumnSpec() {
-			return m_types;
-		}
 	}
 }

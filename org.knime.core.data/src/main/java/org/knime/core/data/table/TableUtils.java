@@ -30,7 +30,7 @@ public class TableUtils {
 	}
 
 	public static ReadTable createReadTable(TableReadStore store) {
-		final ColumnType<?, ?>[] types = store.getColumnSpec();
+		final ColumnType<?, ?>[] types = store.getColumnTypes();
 		return new ReadTable() {
 
 			@Override
@@ -53,7 +53,7 @@ public class TableUtils {
 	}
 
 	public static ReadTable createReadTable(TableReadStore store, RowBatchReaderConfig config) {
-		final ColumnType<?, ?>[] types = store.getColumnSpec();
+		final ColumnType<?, ?>[] types = store.getColumnTypes();
 		return new ReadTable() {
 
 			@Override

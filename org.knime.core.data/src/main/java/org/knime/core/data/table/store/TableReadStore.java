@@ -7,5 +7,5 @@ import org.knime.core.data.row.RowBatchReaderConfig;
 public interface TableReadStore {
 	RowBatchReader createReader(RowBatchReaderConfig config);
 
-	ColumnType<?, ?>[] getColumnSpec();
+	ColumnType<?, ?>[] getColumnTypes();
 }

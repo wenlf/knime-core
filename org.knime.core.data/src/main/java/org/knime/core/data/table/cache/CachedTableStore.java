@@ -138,9 +138,4 @@ public class CachedTableStore implements TableStore, Flushable {
 		// Later...
 		return m_delegate.createFactory();
 	}
-
-	@Override
-	public ColumnType<?, ?>[] getColumnSpec() {
-		return m_types;
-	}
 }

@@ -108,7 +108,7 @@ public class ArrayBenchmarks {
 			}
 		}
 
-		final ReadTable readTable = TableUtils.createReadTable(m_schema, m_store, new RowBatchReaderConfig() {
+		final ReadTable readTable = TableUtils.createReadTable(m_store, new RowBatchReaderConfig() {
 			@Override
 			public int[] getColumnIndices() {
 				// TODO if null, all.

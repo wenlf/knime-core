@@ -58,6 +58,7 @@ public class AbstractArrowTest {
 		}, schema);
 	}
 
+	@SuppressWarnings("resource")
 	public BufferAllocator newAllocator() {
 		// Root closed by factory.
 		return new RootAllocator().newChildAllocator("Test", 0, Long.MAX_VALUE);
