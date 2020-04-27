@@ -11,10 +11,11 @@
 ### API design of org.knime.data.store
 - [ ] MB: Test Life-cycle management (close() vs. destroy() vs. ... finishWriting() 'can I read before I've serialized the entire table')
 - [ ] MB: Thread-safety & Cache (multi-read, multi-write?, cache, ref counting  -> check how does arrow do it?).
-- [ ] CD: MultiVecValue & Custom data types (e.g. Date&Time, Text, Struct, PNG Images). 
+- [X] CD: MultiVecValue & Custom data types (e.g. Date&Time, Text, Struct, PNG Images). 
 - [ ] CD: String, Double, Long, Int, LocalDateTimeCell, SerializableCell
 - [ ] CD: Complex data types (DataCell)
 - [ ] CD: Domain
+- [ ] CD: Wide-data support
 --------------
 - [ ] FileStoreCell, BlobCell
 - [ ] More types: DictType for categorical variables, NativeStructs?, Collections, ...

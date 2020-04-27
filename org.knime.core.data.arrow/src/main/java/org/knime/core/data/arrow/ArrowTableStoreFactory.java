@@ -3,6 +3,7 @@ package org.knime.core.data.arrow;
 import java.io.File;
 import java.io.IOException;
 
+import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
@@ -25,6 +26,9 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 
 	public ArrowTableStoreFactory() {
 		m_root = new RootAllocator();
+
+		m_root.newChildAllocator("MyTable", new AllocationListener() {
+		}, 15, 1500);
 	}
 
 	@Override
@@ -37,7 +41,7 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 		return new ArrowTableStore(file, schema, config);
 	}
 
-	class ArrowTableStore implements TableStore {
+	final class ArrowTableStore implements TableStore {
 
 		private final ColumnType<?, ?>[] m_types;
 
@@ -102,6 +106,7 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 						final FieldVector[] vectors = m_reader.read(chunkIndex);
 						final ColumnChunk[] data = new ColumnChunk[vectors.length];
 						for (int i = 0; i < data.length; i++) {
+							// TODO
 							data[i] = new Float8VectorChunk((Float8Vector) vectors[0]);
 						}
 						return new DefaultRowBatch(data);

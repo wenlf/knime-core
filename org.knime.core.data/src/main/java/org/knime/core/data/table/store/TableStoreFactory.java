@@ -6,6 +6,6 @@ import org.knime.core.data.column.ColumnType;
 
 public interface TableStoreFactory extends AutoCloseable {
 
-	TableStore create(ColumnType<?, ?>[] schema, File file, TableStoreConfig hints);
+	TableStore create(ColumnType<?, ?>[] schema, File file, TableStoreConfig config);
 
 }

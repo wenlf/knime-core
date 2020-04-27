@@ -16,7 +16,7 @@ class AbstractNativeArrayChunk<A> extends AbstractArrayChunk<A> {
 
 	@Override
 	public void setMissing(int index) {
-		// NB: inspired by imglib
+		// NB: inspired by imglib2
 		final int i1 = (int) index >>> 6;
 		m_isMissing[i1] = m_isMissing[i1] | 1l << (index & 63);
 	}

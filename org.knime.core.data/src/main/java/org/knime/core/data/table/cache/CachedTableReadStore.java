@@ -110,7 +110,6 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 				 * only read in 1,2,3,4,5,6,7,8 for the last request of Cursor B. It's a union
 				 * of columns for each chunk index somehow.
 				 */
-
 				final int numMissing = numRequested - bits.cardinality();
 				final RowBatch out;
 				if (numMissing == 0) {

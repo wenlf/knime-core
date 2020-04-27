@@ -94,19 +94,30 @@ public class ArrowBenchmarks extends AbstractArrowTest {
 		}
 	}
 
+//	public static void main(String[] args) throws Exception {
+//		final DoubleTest benchmarks = new DoubleTest();
+//		startup();
+//		for (int i = 0; i < 5; i++) {
+//			System.out.println("\n Starting iteration... " + i);
+//			System.out.println("Setting up store.");
+//			benchmarks.identityTestWideTable();
+//
+//			System.out.println("Running identitiy test.");
+//			benchmarks.newTablesBenchmark();
+//
+//			System.out.println("Deleting identitiy test.");
+//			benchmarks.closeCurrentStore();
+//		}
+//		System.out.println("Done");
+//		shutdown();
+//	}
+
 	public static void main(String[] args) throws Exception {
-		final ArrowBenchmarks benchmarks = new ArrowBenchmarks();
+		final DoubleTest benchmarks = new DoubleTest();
 		startup();
 		for (int i = 0; i < 5; i++) {
-			System.out.println("\n Starting iteration... " + i);
-			System.out.println("Setting up store.");
-			benchmarks.setupNextStore();
-
-			System.out.println("Running identitiy test.");
-			benchmarks.newTablesBenchmark();
-
-			System.out.println("Deleting identitiy test.");
-			benchmarks.closeCurrentStore();
+			System.out.println("Next... " + i);
+			benchmarks.identityTestWideTable();
 		}
 		System.out.println("Done");
 		shutdown();
