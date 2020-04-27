@@ -5,7 +5,7 @@ import org.junit.Test;
 import org.knime.core.data.row.ReadValueRange;
 import org.knime.core.data.row.RowReadCursor;
 import org.knime.core.data.row.RowWriteCursor;
-import org.knime.core.data.row.WriteValueRange;
+import org.knime.core.data.row.ValueRange;
 import org.knime.core.data.table.ReadTable;
 import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
@@ -31,7 +31,7 @@ public class MixedTypesTest extends AbstractArrowTest {
 				StringType.INSTANCE, DateTimeType.INSTANCE))) {
 			final WriteTable writeTable = TableUtils.createWriteTable(store);
 			try (RowWriteCursor writeCursor = writeTable.getCursor()) {
-				final WriteValueRange<DoubleWriteValue> doubleRange = writeCursor.getRange(0, 2);
+				final ValueRange<DoubleWriteValue> doubleRange = writeCursor.getRange(0, 2);
 				final StringWriteValue stringWriteValue = writeCursor.get(2);
 				final DateTimeWriteValue dateTimeWriteValue = writeCursor.get(3);
 

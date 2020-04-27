@@ -8,7 +8,7 @@ import org.junit.Test;
 import org.knime.core.data.row.ReadValueRange;
 import org.knime.core.data.row.RowReadCursor;
 import org.knime.core.data.row.RowWriteCursor;
-import org.knime.core.data.row.WriteValueRange;
+import org.knime.core.data.row.ValueRange;
 import org.knime.core.data.table.ReadTable;
 import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
@@ -65,7 +65,7 @@ public class DoubleTest extends AbstractArrowTest {
 				createStore(chunkSize, createWideSchema(DoubleType.INSTANCE, numColumns)))) {
 			final WriteTable writeTable = TableUtils.createWriteTable(store);
 			try (RowWriteCursor writeCursor = writeTable.getCursor()) {
-				final WriteValueRange<DoubleWriteValue> doubleWriteValue = writeCursor.getRange(0, numColumns);
+				final ValueRange<DoubleWriteValue> doubleWriteValue = writeCursor.getRange(0, numColumns);
 				for (int i = 0; i < numRows; i++) {
 					writeCursor.fwd();
 					if (i % 100 == 0) {
