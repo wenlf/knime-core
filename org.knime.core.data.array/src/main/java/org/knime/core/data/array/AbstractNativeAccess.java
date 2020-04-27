@@ -11,7 +11,7 @@ class AbstractNativeAccess<A extends ArrayChunk> //
 	protected A m_array;
 
 	@Override
-	public void update(A data) {
+	public void load(A data) {
 		m_array = data;
 		m_index = -1;
 	}

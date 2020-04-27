@@ -6,9 +6,8 @@ public abstract class AbstractColumnChunkAccess<C extends ColumnChunk> implement
 	protected C m_data;
 
 	@Override
-	public void update(C data) {
+	public void load(C data) {
 		m_data = data;
-		m_index = -1;
 	}
 
 	@Override

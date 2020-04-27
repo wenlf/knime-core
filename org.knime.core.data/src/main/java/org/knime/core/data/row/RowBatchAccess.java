@@ -6,6 +6,7 @@ import org.knime.core.data.column.ColumnChunkAccess;
 import org.knime.core.data.value.ReadValue;
 import org.knime.core.data.value.WriteValue;
 
+// TODO interface?
 public class RowBatchAccess implements Access<RowBatch> {
 
 	private ColumnChunkAccess<ColumnChunk>[] m_accesses;
@@ -39,10 +40,11 @@ public class RowBatchAccess implements Access<RowBatch> {
 	// TODO even if only called on 'chunk-switch': Can we get rid of the
 	// 'record.getData()' method call
 	@Override
-	public void update(final RowBatch record) {
+	public void load(final RowBatch record) {
 		final ColumnChunk[] data = record.getRecordData();
 		for (int i = 0; i < data.length; i++) {
-			m_accesses[i].update(data[i]);
+			m_accesses[i].load(data[i]);
+			m_accesses[i].reset();
 		}
 	}
 

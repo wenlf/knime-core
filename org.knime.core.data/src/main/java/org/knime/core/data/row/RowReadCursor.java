@@ -48,7 +48,7 @@ public final class RowReadCursor implements AutoCloseable {
 		try {
 			releaseCurrentData();
 			m_currentData = m_reader.read(m_dataIndex++, m_hints);
-			m_access.update(m_currentData);
+			m_access.load(m_currentData);
 			m_currentDataMaxIndex = m_currentData.getNumValues() - 1;
 		} catch (final Exception e) {
 			// TODO

@@ -44,7 +44,7 @@ public class RowWriteCursor implements AutoCloseable {
 	private void switchToNextData() {
 		releaseCurrentData(m_index);
 		m_currentData = m_factory.create();
-		m_access.update(m_currentData);
+		m_access.load(m_currentData);
 		m_currentDataMaxIndex = m_currentData.getMaxCapacity() - 1;
 	}
 

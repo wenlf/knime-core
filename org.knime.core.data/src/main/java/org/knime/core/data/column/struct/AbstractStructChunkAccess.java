@@ -19,7 +19,7 @@ public abstract class AbstractStructChunkAccess implements StructChunkAccess<Str
 	}
 
 	@Override
-	public void update(StructChunk data) {
+	public void load(StructChunk data) {
 		updateInternal(data);
 		m_data = data;
 		m_index = -1;

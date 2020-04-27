@@ -66,7 +66,8 @@ public class ArrowTests {
 		Float8VectorChunk data = new Float8VectorChunk(root);
 		data.allocateNew(3);
 		DoubleAccess access = new DoubleAccess();
-		access.update(data);
+		access.load(data);
+		access.reset();
 
 		int tmp = 0;
 
