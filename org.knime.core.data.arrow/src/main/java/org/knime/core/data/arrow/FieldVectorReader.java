@@ -44,7 +44,6 @@ public class FieldVectorReader implements AutoCloseable {
 		// load next
 		m_reader.loadRecordBatch(m_blocks.get((int) index));
 
-		// TODO Check if there is a faster way
 		final List<FieldVector> fieldVectors = m_root.getFieldVectors();
 		final FieldVector[] res = new FieldVector[fieldVectors.size()];
 		for (int i = 0; i < res.length; i++) {

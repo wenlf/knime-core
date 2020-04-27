@@ -11,20 +11,25 @@ import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
 import org.knime.core.data.table.cache.CachedTableStore;
 import org.knime.core.data.type.DoubleType;
+import org.knime.core.data.type.StringType;
 import org.knime.core.data.value.DoubleReadValue;
 import org.knime.core.data.value.DoubleWriteValue;
+import org.knime.core.data.value.StringReadValue;
+import org.knime.core.data.value.StringWriteValue;
 
 public class CacheTest extends AbstractArrowTest {
 	@Test
 	public void testFlush() throws Exception {
-		final int numRows = 100000;
-		final int chunkSize = 17;
+		final int numRows = 1000;
+		final int chunkSize = 177;
 
-		try (CachedTableStore cache = cache(createStore(chunkSize, DoubleType.INSTANCE))) {
+		try (CachedTableStore cache = cache(
+				createStore(chunkSize, DoubleType.INSTANCE, StringType.INSTANCE, DoubleType.INSTANCE))) {
 			// TODO create writer hints (e.g. dictionary encoding for column X)
 			final WriteTable writeTable = TableUtils.createWriteTable(cache);
 			try (RowWriteCursor writeCursor = writeTable.getCursor()) {
-				final DoubleWriteValue doubleWriteValue = (DoubleWriteValue) writeCursor.get(0);
+				final DoubleWriteValue doubleWriteValue = writeCursor.get(0);
+				final StringWriteValue stringWriteValue = writeCursor.get(1);
 				for (int i = 0; i < numRows; i++) {
 					writeCursor.fwd();
 
@@ -38,6 +43,7 @@ public class CacheTest extends AbstractArrowTest {
 					} else {
 						doubleWriteValue.setDouble(i);
 					}
+					stringWriteValue.setStringValue("Entry" + i);
 				}
 			}
 
@@ -60,6 +66,7 @@ public class CacheTest extends AbstractArrowTest {
 			final ReadTable readTable = TableUtils.createReadTable(cache);
 			try (RowReadCursor readCursor = readTable.newCursor()) {
 				DoubleReadValue doubleReadValue = (DoubleReadValue) readCursor.get(0);
+				StringReadValue stringReadValue = (StringReadValue) readCursor.get(1);
 				for (int i = 0; i < 5; i++) {
 					readCursor.fwd();
 					if (i % 100 == 0) {
@@ -67,6 +74,7 @@ public class CacheTest extends AbstractArrowTest {
 					} else {
 						assertEquals(i, doubleReadValue.getDouble(), 0.00000000000000001);
 					}
+					assertEquals("Entry" + i, stringReadValue.getStringValue());
 				}
 			}
 		}

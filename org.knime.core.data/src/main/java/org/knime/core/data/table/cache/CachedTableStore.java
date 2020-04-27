@@ -100,8 +100,11 @@ public class CachedTableStore implements TableStore, Flushable {
 			// for each column cache
 			for (int i = 0; i < data.length; i++) {
 				data[i].release();
-				m_caches.get(i).clear();
 			}
+		}
+		// for each column cache
+		for (int i = 0; i < data.length; i++) {
+			m_caches.get(i).clear();
 		}
 		if (m_flushIndex == m_numChunks & m_finishedWriting) {
 			try {

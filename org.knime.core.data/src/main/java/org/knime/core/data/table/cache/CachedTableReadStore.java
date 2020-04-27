@@ -85,6 +85,9 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 				final int numRequested = isSelection ? indices.length : m_caches.size();
 				final ColumnChunk[] data = new ColumnChunk[numRequested];
 				final BitSet bits = new BitSet(data.length);
+
+				// TODO if indices == null, we can simply set ALL bits or just move an and
+				// request all. Can be much more efficiently implemeneted than what I did here.
 				for (int i = 0; i < numRequested; i++) {
 					final ColumnChunk columnData = m_caches.get(isSelection ? indices[i] : i).get(chunkIndex);
 					if (columnData == null) {
@@ -157,7 +160,6 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 			}
 		};
 	}
-	
 
 	@Override
 	public ColumnType<?, ?>[] getColumnTypes() {

@@ -8,9 +8,19 @@ public class DefaultRowBatch implements RowBatch {
 
 	private int m_numValues;
 
+	private int m_chunkSize;
+
 	public DefaultRowBatch(ColumnChunk... data) {
 		m_numValues = data[0].getNumValues();
+		// chunkSize = numValues.
+		m_chunkSize = m_numValues;
 		m_data = data;
+	}
+
+	public DefaultRowBatch(int chunkSize, ColumnChunk... data) {
+		this(data);
+		// write case. 
+		m_chunkSize = chunkSize;
 	}
 
 	// TODO share interface with nested types
@@ -21,7 +31,11 @@ public class DefaultRowBatch implements RowBatch {
 
 	@Override
 	public int getMaxCapacity() {
-		return m_data[0].getMaxCapacity();
+		// TODO we have to return the chunk size here. different arrow types will
+		// instantiate
+		// different max capacities, e.g. based on memory consumption.
+		// TODO figure out optimal chunk sizes without wasting memory.
+		return m_chunkSize;
 	}
 
 	@Override

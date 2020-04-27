@@ -3,11 +3,13 @@ package org.knime.core.data.arrow;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.arrow.memory.AllocationListener;
+import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.StructVector;
 import org.knime.core.data.column.ColumnChunk;
 import org.knime.core.data.column.ColumnType;
 import org.knime.core.data.row.DefaultRowBatch;
@@ -26,9 +28,6 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 
 	public ArrowTableStoreFactory() {
 		m_root = new RootAllocator();
-
-		m_root.newChildAllocator("MyTable", new AllocationListener() {
-		}, 15, 1500);
 	}
 
 	@Override
@@ -106,8 +105,15 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 						final FieldVector[] vectors = m_reader.read(chunkIndex);
 						final ColumnChunk[] data = new ColumnChunk[vectors.length];
 						for (int i = 0; i < data.length; i++) {
-							// TODO
-							data[i] = new Float8VectorChunk((Float8Vector) vectors[0]);
+							// TODO visitor pattern...
+							// TODO synergy with ArrowRowBatchFactory?
+							if (vectors[i] instanceof Float8Vector) {
+								data[i] = new Float8VectorChunk((Float8Vector) vectors[i]);
+							} else if (vectors[i] instanceof StructVector) {
+								data[i] = new StructVectorChunk((StructVector) vectors[i]);
+							} else if (vectors[i] instanceof VarCharVector) {
+								data[i] = new VarCharVectorChunk((VarCharVector) vectors[i]);
+							}
 						}
 						return new DefaultRowBatch(data);
 					} catch (IOException e) {
@@ -142,7 +148,8 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 		public RowBatchFactory createFactory() {
 			// TODO change interface... see 'AbstractRecordFactory'
 			// TODO use child allocator per store!!
-			return new ArrowRowBatchFactory(m_types, m_root, m_config.getInitialChunkSize());
+			return new ArrowRowBatchFactory(m_types, m_root,
+					BaseAllocator.nextPowerOfTwo(m_config.getInitialChunkSize()) - 1);
 		}
 	}
 }

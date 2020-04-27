@@ -36,7 +36,7 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 		for (int i = 0; i < m_factories.length; i++) {
 			chunks[i] = m_factories[i].create(m_chunkSize);
 		}
-		return new DefaultRowBatch(chunks);
+		return new DefaultRowBatch(m_chunkSize, chunks);
 	}
 
 	@Override
