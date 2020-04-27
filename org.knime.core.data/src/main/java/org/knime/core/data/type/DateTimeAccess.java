@@ -25,12 +25,8 @@ public class DateTimeAccess extends AbstractStructChunkAccess implements DateTim
 	}
 
 	@Override
-	public void setDate(double date) {
+	public void setDateTime(double date, double time) {
 		m_dateChunk.setDouble(m_index, date);
-	}
-
-	@Override
-	public void setTime(double time) {
 		m_timeChunk.setDouble(m_index, time);
 	}
 

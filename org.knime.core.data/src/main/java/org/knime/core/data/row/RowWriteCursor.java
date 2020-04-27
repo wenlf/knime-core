@@ -14,7 +14,6 @@ public class RowWriteCursor implements AutoCloseable {
 	private final RowBatchAccess m_access;
 
 	private RowBatch m_currentData;
-
 	private long m_currentDataMaxIndex;
 	private int m_index = -1;
 
@@ -40,24 +39,22 @@ public class RowWriteCursor implements AutoCloseable {
 
 	// User can keep list while iterating over table
 	// TODO share code with RangeReadCursor
-	@SuppressWarnings("unchecked")
+	// TODO performance
 	public <W extends WriteValue> WriteValueRange<W> getRange(int startIndex, int length) {
 		// TODO check bounds
 		return new WriteValueRange<W>() {
-			private final W[] m_accesses;
+			private final List<W> m_accesses = new ArrayList<W>();
 			{
-				final List<W> accesses = new ArrayList<W>();
 				for (int i = startIndex; i < length; i++) {
-					accesses.add(m_access.getReadValue(i));
+					m_accesses.add(m_access.getReadValue(i));
 				}
-				final W[] cast = (W[]) accesses.toArray();
-				m_accesses = cast;
 			}
 
 			// zero based index accesses
 			@Override
 			public W getWriteValue(int index) {
-				return m_accesses[index];
+				// TODO performance
+				return m_accesses.get(index);
 			}
 		};
 	}

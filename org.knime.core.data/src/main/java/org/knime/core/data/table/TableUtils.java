@@ -29,8 +29,8 @@ public class TableUtils {
 		};
 	}
 
-	public static ReadTable createReadTable(ColumnType<?, ?>[] types, TableReadStore store,
-			RowBatchReaderConfig config) {
+	public static ReadTable createReadTable(TableReadStore store) {
+		final ColumnType<?, ?>[] types = store.getColumnSpec();
 		return new ReadTable() {
 
 			@Override
@@ -38,9 +38,33 @@ public class TableUtils {
 				return types.length;
 			}
 
+			// TODO pass config here? config not constant over table I guess...
 			@Override
 			public RowReadCursor newCursor() {
-				return new RowReadCursor(store.createReader(), RowBatchUtils.createAccess(types), config);
+				return new RowReadCursor(store.createReader(new RowBatchReaderConfig() {
+
+					@Override
+					public int[] getColumnIndices() {
+						return null;
+					}
+				}), RowBatchUtils.createAccess(types));
+			}
+		};
+	}
+
+	public static ReadTable createReadTable(TableReadStore store, RowBatchReaderConfig config) {
+		final ColumnType<?, ?>[] types = store.getColumnSpec();
+		return new ReadTable() {
+
+			@Override
+			public long getNumColumns() {
+				return types.length;
+			}
+
+			// TODO pass config here? config not constant over table I guess...
+			@Override
+			public RowReadCursor newCursor() {
+				return new RowReadCursor(store.createReader(config), RowBatchUtils.createAccess(types));
 			}
 		};
 	}

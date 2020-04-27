@@ -13,6 +13,7 @@ import org.knime.core.data.row.DefaultRowBatch;
 import org.knime.core.data.row.RowBatch;
 import org.knime.core.data.row.RowBatchFactory;
 import org.knime.core.data.row.RowBatchReader;
+import org.knime.core.data.row.RowBatchReaderConfig;
 import org.knime.core.data.row.RowBatchWriter;
 import org.knime.core.data.table.store.TableStore;
 
@@ -116,8 +117,8 @@ public class CachedTableStore implements TableStore, Flushable {
 	// Move to CachedRecordReadStore. Make sure caches are 'lazily' instantiated in
 	// case of read access.
 	@Override
-	public RowBatchReader createReader() {
-		return m_readCache.createReader();
+	public RowBatchReader createReader(RowBatchReaderConfig config) {
+		return m_readCache.createReader(config);
 	}
 
 	@Override
@@ -136,5 +137,10 @@ public class CachedTableStore implements TableStore, Flushable {
 		// TODO anything smart we can do here? Track created data? reuse data? etc?
 		// Later...
 		return m_delegate.createFactory();
+	}
+
+	@Override
+	public ColumnType<?, ?>[] getColumnSpec() {
+		return m_types;
 	}
 }

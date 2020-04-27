@@ -18,12 +18,10 @@ public final class RowReadCursor implements AutoCloseable {
 	private int m_index = -1;
 
 	private RowBatch m_currentData;
-	private RowBatchReaderConfig m_hints;
 
-	public RowReadCursor(final RowBatchReader reader, final RowBatchAccess access, RowBatchReaderConfig hints) {
+	public RowReadCursor(final RowBatchReader reader, final RowBatchAccess access) {
 		m_reader = reader;
 		m_access = access;
-		m_hints = hints;
 		m_numChunks = m_reader.getNumChunks();
 
 		switchToNextData();
@@ -43,25 +41,23 @@ public final class RowReadCursor implements AutoCloseable {
 	}
 
 	// User can keep list while iterating over table
+	// TODO performance
 	// TODO share code with RangeReadCursor
-	@SuppressWarnings("unchecked")
 	public <R extends ReadValue> ReadValueRange<R> getRange(int startIndex, int length) {
 		// TODO check bounds
 		return new ReadValueRange<R>() {
-			private final R[] m_accesses;
+			final List<R> m_accesses = new ArrayList<R>();
 			{
-				final List<R> accesses = new ArrayList<R>();
 				for (int i = startIndex; i < length; i++) {
-					accesses.add(m_access.getReadValue(i));
+					m_accesses.add(m_access.getReadValue(i));
 				}
-				final R[] cast = (R[]) accesses.toArray();
-				m_accesses = cast;
 			}
 
 			// zero based index accesses
 			@Override
 			public R getReadValue(int index) {
-				return m_accesses[index];
+				// TODO performance
+				return m_accesses.get(index);
 			}
 		};
 	}
@@ -73,7 +69,7 @@ public final class RowReadCursor implements AutoCloseable {
 	private void switchToNextData() {
 		try {
 			releaseCurrentData();
-			m_currentData = m_reader.read(m_dataIndex++, m_hints);
+			m_currentData = m_reader.read(m_dataIndex++);
 			m_access.load(m_currentData);
 			m_currentDataMaxIndex = m_currentData.getNumValues() - 1;
 		} catch (final Exception e) {

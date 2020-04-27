@@ -21,11 +21,9 @@ import org.knime.core.data.table.store.TableStoreFactory;
 
 public class ArrowTableStoreFactory implements TableStoreFactory {
 
-	private final int m_chunkSize;
 	private final BufferAllocator m_root;
 
-	public ArrowTableStoreFactory(int chunkSize) {
-		m_chunkSize = chunkSize;
+	public ArrowTableStoreFactory() {
 		m_root = new RootAllocator();
 	}
 
@@ -35,8 +33,8 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 	}
 
 	@Override
-	public TableStore create(ColumnType<?, ?>[] schema, File file, TableStoreConfig hints) {
-		return new ArrowTableStore(file, schema, hints);
+	public TableStore create(ColumnType<?, ?>[] schema, File file, TableStoreConfig config) {
+		return new ArrowTableStore(file, schema, config);
 	}
 
 	class ArrowTableStore implements TableStore {
@@ -47,9 +45,12 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 		private final BufferAllocator m_childAllocator = m_root.newChildAllocator("ArrowStore", 0, m_root.getLimit());
 		private final File m_file;
 
-		ArrowTableStore(File file, final ColumnType<?, ?>[] types, TableStoreConfig hints) {
+		private TableStoreConfig m_config;
+
+		ArrowTableStore(File file, final ColumnType<?, ?>[] types, TableStoreConfig config) {
 			m_types = types;
 			m_file = file;
+			m_config = config;
 		}
 
 		@Override
@@ -81,7 +82,7 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 		}
 
 		@Override
-		public RowBatchReader createReader() {
+		public RowBatchReader createReader(RowBatchReaderConfig config) {
 			return new RowBatchReader() {
 
 				// for now one reader per RecordReader
@@ -96,7 +97,7 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 				}
 
 				@Override
-				public RowBatch read(int chunkIndex, RowBatchReaderConfig hints) {
+				public RowBatch read(int chunkIndex) {
 					try {
 						final FieldVector[] vectors = m_reader.read(chunkIndex);
 						final ColumnChunk[] data = new ColumnChunk[vectors.length];
@@ -136,7 +137,12 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 		public RowBatchFactory createFactory() {
 			// TODO change interface... see 'AbstractRecordFactory'
 			// TODO use child allocator per store!!
-			return new ArrowRowBatchFactory(m_types, m_root, m_chunkSize);
+			return new ArrowRowBatchFactory(m_types, m_root, m_config.getInitialChunkSize());
+		}
+
+		@Override
+		public ColumnType<?, ?>[] getColumnSpec() {
+			return m_types;
 		}
 	}
 }

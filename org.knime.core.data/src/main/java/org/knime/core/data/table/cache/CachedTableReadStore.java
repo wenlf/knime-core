@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.knime.core.data.column.ColumnChunk;
+import org.knime.core.data.column.ColumnType;
 import org.knime.core.data.row.DefaultRowBatch;
 import org.knime.core.data.row.RowBatch;
 import org.knime.core.data.row.RowBatchReader;
@@ -24,13 +25,16 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 	// size of cache
 	private int m_numChunks = 0;
 
-	private RowBatchReader m_reader;
+	private ColumnType<?, ?>[] m_types;
+
+	private TableReadStore m_delegate;
 
 	CachedTableReadStore(final TableReadStore delegate, final List<Map<Integer, ColumnChunk>> caches) {
 		m_caches = caches;
 
 		// TODO we create more readers for parallel reading.
-		m_reader = delegate.createReader();
+		m_types = delegate.getColumnSpec();
+		m_delegate = delegate;
 	}
 
 	// increment the number of chunks by one (in case we're currently still
@@ -56,7 +60,13 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 	// Move to CachedRecordReadStore. Make sure caches are 'lazily' instantiated in
 	// case of read access.
 	@Override
-	public RowBatchReader createReader() {
+	public RowBatchReader createReader(RowBatchReaderConfig config) {
+
+		// create new reader per read request. each reader could be configured
+		// differently. configuration constant per reader.
+		final RowBatchReader reader = m_delegate.createReader(config);
+
+		// TODO we have to pass the config
 		return new RowBatchReader() {
 
 			@Override
@@ -69,14 +79,14 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 			// flushed and released?
 
 			@Override
-			public RowBatch read(int chunkIndex, RowBatchReaderConfig hints) {
-				// TODO special case when we know entire table is in cache
-
-				final int[] indices = hints.getColumnIndices();
-				final ColumnChunk[] data = new ColumnChunk[indices.length];
+			public RowBatch read(int chunkIndex) {
+				final int[] indices = config.getColumnIndices();
+				final boolean isSelection = indices != null;
+				final int numRequested = isSelection ? indices.length : m_caches.size();
+				final ColumnChunk[] data = new ColumnChunk[numRequested];
 				final BitSet bits = new BitSet(data.length);
-				for (int i = 0; i < indices.length; i++) {
-					final ColumnChunk columnData = m_caches.get(indices[i]).get(chunkIndex);
+				for (int i = 0; i < numRequested; i++) {
+					final ColumnChunk columnData = m_caches.get(isSelection ? indices[i] : i).get(chunkIndex);
 					if (columnData == null) {
 						bits.clear(i);
 					} else {
@@ -84,7 +94,6 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 						bits.set(i);
 					}
 				}
-
 				/*
 				 * TODO Now we could be nice to our friends also reading from this cache and
 				 * also load their data. Optimizes away additional IO call overhead to backend.
@@ -102,12 +111,12 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 				 * of columns for each chunk index somehow.
 				 */
 
-				final int numMissing = indices.length - bits.cardinality();
+				final int numMissing = numRequested - bits.cardinality();
 				final RowBatch out;
 				if (numMissing == 0) {
 					out = new DefaultRowBatch(data);
-				} else if (numMissing == indices.length) {
-					final RowBatch record = request(chunkIndex, hints);
+				} else if (numMissing == numRequested) {
+					final RowBatch record = request(chunkIndex, config);
 					final ColumnChunk[] readData = record.getRecordData();
 					for (int i = 0; i < data.length; i++) {
 						m_caches.get(i).put(chunkIndex, readData[i]);
@@ -140,12 +149,12 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 			// temporary solution. do we want the actual readers to live 'outside'?
 			private RowBatch request(int chunkIndex, RowBatchReaderConfig hints) {
 				// TODO smarter! more reader threads? pre-loading etc.
-				return m_reader.read(chunkIndex, hints);
+				return reader.read(chunkIndex);
 			}
 
 			@Override
 			public void close() throws Exception {
-				m_reader.close();
+				reader.close();
 			}
 		};
 	}
@@ -153,5 +162,10 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 	@Override
 	public void close() throws Exception {
 		clear();
+	}
+
+	@Override
+	public ColumnType<?, ?>[] getColumnSpec() {
+		return m_types;
 	}
 }

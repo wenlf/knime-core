@@ -34,7 +34,7 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 	public RowBatch create() {
 		final ColumnChunk[] chunks = new ColumnChunk[m_factories.length];
 		for (int i = 0; i < m_factories.length; i++) {
-			chunks[i] = m_factories[i].create();
+			chunks[i] = m_factories[i].create(m_chunkSize);
 		}
 		return new DefaultRowBatch(chunks);
 	}
@@ -45,28 +45,28 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 	}
 
 	// TODO vector naming (e.g. with TableSchema class...?)
-	// creates nested structs recursively.
 
+	// creates nested structs recursively.
 	// TODO outside facing
 	private ChunkFactory<FieldVectorChunk<?>>[] createColumns(boolean hasParent, final ColumnType<?, ?>... types) {
 		@SuppressWarnings("unchecked")
 		final ChunkFactory<FieldVectorChunk<?>>[] factories = new ChunkFactory[m_types.length];
 		for (int i = 0; i < factories.length; i++) {
 			if (types[i] instanceof DoubleType) {
-				factories[i] = () -> allocateNew(new Float8VectorChunk(m_allocator), hasParent);
+				factories[i] = (c) -> allocateNew(new Float8VectorChunk(m_allocator), hasParent, c);
 			} else if (m_types[i] instanceof StringType) {
-				factories[i] = () -> allocateNew(new VarCharVectorChunk(m_allocator), hasParent);
+				factories[i] = (c) -> allocateNew(new VarCharVectorChunk(m_allocator), hasParent, c);
 			} else if (m_types[i] instanceof StructType) {
 				final ChunkFactory<FieldVectorChunk<?>>[] childFactories = createColumns(true,
 						((StructType) m_types[i]).getColumnTypes());
-				factories[i] = () -> {
+				factories[i] = (c) -> {
 					final ArrowStructVector structVector = new ArrowStructVector("StructVector", m_allocator);
 					final FieldVectorChunk<?>[] childColumns = new FieldVectorChunk[childFactories.length];
 					for (int j = 0; j < childFactories.length; j++) {
-						childColumns[j] = childFactories[j].create();
+						childColumns[j] = childFactories[j].create(c);
 						structVector.putVectorInternal("Child", childColumns[j].get());
 					}
-					return allocateNew(new StructVectorChunk(structVector, childColumns), hasParent);
+					return allocateNew(new StructVectorChunk(structVector, childColumns), hasParent, c);
 				};
 			}
 		}
@@ -74,9 +74,9 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 
 	}
 
-	private <C extends FieldVectorChunk<?>> C allocateNew(C chunk, boolean hasParent) {
+	private <C extends FieldVectorChunk<?>> C allocateNew(C chunk, boolean hasParent, int chunkSize) {
 		if (!hasParent) {
-			chunk.allocateNew(m_chunkSize);
+			chunk.allocateNew(chunkSize);
 		}
 		return chunk;
 	}

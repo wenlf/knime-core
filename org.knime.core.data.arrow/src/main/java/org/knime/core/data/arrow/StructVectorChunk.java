@@ -44,6 +44,9 @@ public class StructVectorChunk implements StructChunk, FieldVectorChunk<StructVe
 
 	@Override
 	public void release() {
+		for (FieldVectorChunk<?> chunk : m_columns) {
+			chunk.release();
+		}
 		if (m_refCounter.decrementAndGet() == 0) {
 			m_vector.close();
 		}
@@ -51,6 +54,9 @@ public class StructVectorChunk implements StructChunk, FieldVectorChunk<StructVe
 
 	@Override
 	public void retain() {
+		for (FieldVectorChunk<?> chunk : m_columns) {
+			chunk.retain();
+		}
 		m_refCounter.getAndIncrement();
 	}
 
