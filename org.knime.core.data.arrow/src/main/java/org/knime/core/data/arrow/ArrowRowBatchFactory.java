@@ -27,7 +27,7 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 		m_types = types;
 		m_chunkSize = chunkSize;
 		m_allocator = allocator;
-		m_factories = createColumns(m_types, false);
+		m_factories = createColumns(false, m_types);
 	}
 
 	@Override
@@ -46,7 +46,9 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 
 	// TODO vector naming (e.g. with TableSchema class...?)
 	// creates nested structs recursively.
-	private ChunkFactory<FieldVectorChunk<?>>[] createColumns(final ColumnType<?, ?>[] types, boolean hasParent) {
+
+	// TODO outside facing
+	private ChunkFactory<FieldVectorChunk<?>>[] createColumns(boolean hasParent, final ColumnType<?, ?>... types) {
 		@SuppressWarnings("unchecked")
 		final ChunkFactory<FieldVectorChunk<?>>[] factories = new ChunkFactory[m_types.length];
 		for (int i = 0; i < factories.length; i++) {
@@ -55,8 +57,8 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 			} else if (m_types[i] instanceof StringType) {
 				factories[i] = () -> allocateNew(new VarCharVectorChunk(m_allocator), hasParent);
 			} else if (m_types[i] instanceof StructType) {
-				final ChunkFactory<FieldVectorChunk<?>>[] childFactories = createColumns(
-						((StructType) m_types[i]).getColumnTypes(), true);
+				final ChunkFactory<FieldVectorChunk<?>>[] childFactories = createColumns(true,
+						((StructType) m_types[i]).getColumnTypes());
 				factories[i] = () -> {
 					final ArrowStructVector structVector = new ArrowStructVector("StructVector", m_allocator);
 					final FieldVectorChunk<?>[] childColumns = new FieldVectorChunk[childFactories.length];
@@ -89,5 +91,4 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 			putVector(name, vector);
 		}
 	}
-
 }
