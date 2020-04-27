@@ -6,4 +6,6 @@ public interface RowBatchFactory {
 	ColumnType<?, ?>[] getColumnTypes();
 
 	RowBatch create();
+	
+	void setChunkSize(int chunkSize);
 }

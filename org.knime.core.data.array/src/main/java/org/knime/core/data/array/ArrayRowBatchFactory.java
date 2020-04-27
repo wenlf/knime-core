@@ -63,4 +63,9 @@ public class ArrayRowBatchFactory implements RowBatchFactory {
 		throw new UnsupportedOperationException("nyi");
 	}
 
+	@Override
+	public void setChunkSize(int chunkSize) {
+		m_chunkSize = chunkSize;
+	}
+
 }

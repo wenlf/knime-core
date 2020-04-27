@@ -19,7 +19,7 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 
 	private final BufferAllocator m_allocator;
 	private final ColumnType<?, ?>[] m_types;
-	private final int m_chunkSize;
+	private int m_chunkSize;
 	private final ChunkFactory<FieldVectorChunk<?>>[] m_factories;
 
 	// TODO move chunk size into create for dynamic chunk sizes
@@ -90,5 +90,10 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 		void putVectorInternal(String name, FieldVector vector) {
 			putVector(name, vector);
 		}
+	}
+
+	@Override
+	public void setChunkSize(int chunkSize) {
+		m_chunkSize = chunkSize;
 	}
 }
