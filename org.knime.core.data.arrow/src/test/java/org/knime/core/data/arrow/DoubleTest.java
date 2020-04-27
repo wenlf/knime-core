@@ -5,10 +5,10 @@ import static org.junit.Assert.assertEquals;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Assert;
 import org.junit.Test;
-import org.knime.core.data.row.ReadValueRange;
 import org.knime.core.data.row.RowReadCursor;
+import org.knime.core.data.row.RowUtils;
+import org.knime.core.data.row.RowUtils.ValueRange;
 import org.knime.core.data.row.RowWriteCursor;
-import org.knime.core.data.row.ValueRange;
 import org.knime.core.data.table.ReadTable;
 import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
@@ -65,32 +65,32 @@ public class DoubleTest extends AbstractArrowTest {
 				createStore(chunkSize, createWideSchema(DoubleType.INSTANCE, numColumns)))) {
 			final WriteTable writeTable = TableUtils.createWriteTable(store);
 			try (RowWriteCursor writeCursor = writeTable.getCursor()) {
-				final ValueRange<DoubleWriteValue> doubleWriteValue = writeCursor.getRange(0, numColumns);
+				final ValueRange<DoubleWriteValue> doubleWriteValue = RowUtils.getRange(writeCursor, 0, numColumns);
 				for (int i = 0; i < numRows; i++) {
 					writeCursor.fwd();
 					if (i % 100 == 0) {
 						for (int j = 0; j < numColumns; j++) {
-							doubleWriteValue.getWriteValue(j).setMissing();
+							doubleWriteValue.get(j).setMissing();
 						}
 					} else {
 						for (int j = 0; j < numColumns; j++) {
-							doubleWriteValue.getWriteValue(j).setDouble(i + j);
+							doubleWriteValue.get(j).setDouble(i + j);
 						}
 					}
 				}
 			}
 			final ReadTable readTable = TableUtils.createReadTable(store);
 			try (RowReadCursor readCursor = readTable.newCursor()) {
-				final ReadValueRange<DoubleReadValue> doubleReadValue = readCursor.getRange(0, numColumns);
+				final ValueRange<DoubleReadValue> doubleReadValue = RowUtils.getRange(readCursor, 0, numColumns);
 				for (int i = 0; i < numRows; i++) {
 					readCursor.fwd();
 					if (i % 100 == 0) {
 						for (int j = 0; j < numColumns; j++) {
-							Assert.assertTrue(doubleReadValue.getReadValue(j).isMissing());
+							Assert.assertTrue(doubleReadValue.get(j).isMissing());
 						}
 					} else {
 						for (int j = 0; j < numColumns; j++) {
-							assertEquals(i + j, doubleReadValue.getReadValue(j).getDouble(), 0.00000000000000001);
+							assertEquals(i + j, doubleReadValue.get(j).getDouble(), 0.00000000000000001);
 						}
 					}
 				}
