@@ -3,7 +3,7 @@ package org.knime.core.data.type;
 import org.knime.core.data.column.ColumnType;
 import org.knime.core.data.column.struct.StructType;
 
-class DateTimeType implements StructType {
+public class DateTimeType implements StructType {
 
 	public static final DateTimeType INSTANCE = new DateTimeType();
 

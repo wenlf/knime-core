@@ -12,7 +12,7 @@ public class StructVectorChunk implements StructChunk, FieldVectorChunk<StructVe
 	private final StructVector m_vector;
 	private final AtomicInteger m_refCounter = new AtomicInteger(1);
 
-	StructVectorChunk(StructVector vector, FieldVectorChunk<?>[] columns) {
+	StructVectorChunk(StructVector vector, FieldVectorChunk<?>... columns) {
 		m_columns = columns;
 		m_vector = vector;
 	}
@@ -67,6 +67,7 @@ public class StructVectorChunk implements StructChunk, FieldVectorChunk<StructVe
 	@Override
 	public void allocateNew(int chunkSize) {
 		m_vector.setInitialCapacity(chunkSize);
+		m_vector.allocateNew();
 	}
 
 }

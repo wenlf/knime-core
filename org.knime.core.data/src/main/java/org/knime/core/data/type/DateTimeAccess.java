@@ -1,8 +1,5 @@
 package org.knime.core.data.type;
 
-import java.sql.Time;
-import java.util.Date;
-
 import org.knime.core.data.column.struct.AbstractStructChunkAccess;
 import org.knime.core.data.column.struct.StructChunk;
 import org.knime.core.data.value.DateTimeReadValue;
@@ -11,8 +8,7 @@ import org.knime.core.data.value.DateTimeWriteValue;
 /*
  * TODO obviously this implementation sucks, just a POC for StructTypes
  */
-
-class DateTimeAccess extends AbstractStructChunkAccess implements DateTimeReadValue, DateTimeWriteValue {
+public class DateTimeAccess extends AbstractStructChunkAccess implements DateTimeReadValue, DateTimeWriteValue {
 
 	private DoubleChunk m_dateChunk;
 	private DoubleChunk m_timeChunk;
@@ -29,13 +25,13 @@ class DateTimeAccess extends AbstractStructChunkAccess implements DateTimeReadVa
 	}
 
 	@Override
-	public void write(Date date) {
-		m_dateChunk.setDouble(m_index, date.getDate());
+	public void setDate(double date) {
+		m_dateChunk.setDouble(m_index, date);
 	}
 
 	@Override
-	public void write(Time time) {
-		m_timeChunk.setDouble(m_index, time.getTime());
+	public void setTime(double time) {
+		m_timeChunk.setDouble(m_index, time);
 	}
 
 	@Override
@@ -44,13 +40,13 @@ class DateTimeAccess extends AbstractStructChunkAccess implements DateTimeReadVa
 	}
 
 	@Override
-	public Date getDate() {
-		return new Date((long) m_dateChunk.getDouble(m_index));
+	public double getDate() {
+		return m_dateChunk.getDouble(m_index);
 	}
 
 	@Override
-	public Time getTime() {
-		return new Time((long) m_timeChunk.getDouble(m_index));
+	public double getTime() {
+		return m_timeChunk.getDouble(m_index);
 	}
 
 }

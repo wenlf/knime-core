@@ -9,6 +9,11 @@ import java.nio.file.Files;
 import java.util.UUID;
 
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
@@ -23,8 +28,11 @@ import org.knime.core.data.table.WriteTable;
 import org.knime.core.data.table.cache.CachedTableStore;
 import org.knime.core.data.table.store.TableStore;
 import org.knime.core.data.table.store.TableStoreFactory;
+import org.knime.core.data.type.DateTimeAccess;
 import org.knime.core.data.type.DoubleAccess;
 import org.knime.core.data.type.DoubleType;
+import org.knime.core.data.value.DateTimeReadValue;
+import org.knime.core.data.value.DateTimeWriteValue;
 import org.knime.core.data.value.DoubleReadValue;
 import org.knime.core.data.value.DoubleWriteValue;
 
@@ -50,8 +58,6 @@ public class ArrowTests {
 	private static final ColumnType<?, ?>[] SCHEMA = new ColumnType[] { DoubleType.INSTANCE };
 
 	/**
-	 * TESTS
-	 * 
 	 * @throws Exception
 	 */
 	@AfterClass
@@ -87,6 +93,50 @@ public class ArrowTests {
 		for (int i = 0; i < data.getNumValues(); i++) {
 			access.fwd();
 			assertEquals(i, read.getDouble(), 0.0000000000001);
+			tmp++;
+		}
+
+		assertEquals(3, tmp);
+	}
+
+	@Test
+	public void dateTimeData() {
+		final RootAllocator root = new RootAllocator();
+
+		StructVector vector = StructVector.empty("Struct", root);
+		Float8VectorChunk dateChunk = new Float8VectorChunk(vector.addOrGet("Date",
+				new FieldType(false, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), null),
+				Float8Vector.class));
+		Float8VectorChunk timeChunk = new Float8VectorChunk(vector.addOrGet("Time",
+				new FieldType(false, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), null),
+				Float8Vector.class));
+		StructVectorChunk structChunk = new StructVectorChunk(vector, dateChunk, timeChunk);
+		structChunk.allocateNew(3);
+
+		DateTimeAccess access = new DateTimeAccess();
+		access.load(structChunk);
+		access.reset();
+
+		int tmp = 0;
+
+		DateTimeWriteValue write = access;
+		for (int i = 0; i < structChunk.getMaxCapacity(); i++) {
+			access.fwd();
+			write.setDate(i + 5);
+			write.setTime(i + 3);
+			tmp++;
+		}
+
+		assertEquals(3, tmp);
+		structChunk.setNumValues(3);
+		access.reset();
+		tmp = 0;
+
+		DateTimeReadValue read = access;
+		for (int i = 0; i < structChunk.getNumValues(); i++) {
+			access.fwd();
+			assertEquals(i + 5, read.getDate(), 0.0000000000001);
+			assertEquals(i + 3, read.getTime(), 0.0000000000001);
 			tmp++;
 		}
 
