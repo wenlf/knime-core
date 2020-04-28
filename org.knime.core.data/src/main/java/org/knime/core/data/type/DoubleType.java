@@ -13,5 +13,4 @@ public class DoubleType implements ColumnType<DoubleChunk, DoubleAccess> {
 	public DoubleAccess createAccess() {
 		return new DoubleAccess();
 	}
-
 }

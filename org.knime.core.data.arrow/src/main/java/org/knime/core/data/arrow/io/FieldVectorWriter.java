@@ -41,6 +41,7 @@ public class FieldVectorWriter implements AutoCloseable {
 			m_vectorLoader = new VectorLoader(m_root);
 			m_writer = new ArrowFileWriter(m_root, null, new RandomAccessFile(m_file, "rw").getChannel());
 		}
+		
 
 		// TODO there must be a better way?!
 		final List<ArrowFieldNode> nodes = new ArrayList<>();
