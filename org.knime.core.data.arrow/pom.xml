@@ -10,6 +10,7 @@
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
+					<release>1.8</release>
 					<source>1.8</source>
 					<target>1.8</target>
 					<annotationProcessorPaths>
@@ -19,6 +20,13 @@
 							<version>1.23</version>
 						</path>
 					</annotationProcessorPaths>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
 				</configuration>
 			</plugin>
 			<plugin>
