@@ -53,7 +53,7 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 	// TODO outside facing
 	private ChunkFactory<FieldVectorChunk<?>>[] createColumns(boolean hasParent, final ColumnType<?, ?>... types) {
 		@SuppressWarnings("unchecked")
-		final ChunkFactory<FieldVectorChunk<?>>[] factories = new ChunkFactory[m_types.length];
+		final ChunkFactory<FieldVectorChunk<?>>[] factories = new ChunkFactory[types.length];
 		for (int i = 0; i < factories.length; i++) {
 			if (types[i] instanceof DoubleType) {
 				factories[i] = (c) -> allocateNew(new Float8VectorChunk(m_allocator), hasParent, c);
@@ -67,7 +67,7 @@ public class ArrowRowBatchFactory implements RowBatchFactory {
 					final FieldVectorChunk<?>[] childColumns = new FieldVectorChunk[childFactories.length];
 					for (int j = 0; j < childFactories.length; j++) {
 						childColumns[j] = childFactories[j].create(c);
-						structVector.putVectorInternal("Child", childColumns[j].get());
+						structVector.putVectorInternal("Child" + j, childColumns[j].get());
 					}
 					return allocateNew(new StructVectorChunk(structVector, childColumns), hasParent, c);
 				};
