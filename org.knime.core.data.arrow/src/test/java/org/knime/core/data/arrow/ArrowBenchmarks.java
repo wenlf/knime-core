@@ -5,20 +5,19 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.Assert;
 import org.junit.Test;
-import org.knime.core.data.arrow.type.DoubleTest;
 import org.knime.core.data.row.RowReadCursor;
+import org.knime.core.data.row.RowUtils;
+import org.knime.core.data.row.RowUtils.ValueRange;
 import org.knime.core.data.row.RowWriteCursor;
 import org.knime.core.data.table.ReadTable;
 import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
 import org.knime.core.data.table.cache.CachedTableStore;
 import org.knime.core.data.type.DoubleType;
-import org.knime.core.data.type.StringType;
 import org.knime.core.data.value.DoubleReadValue;
 import org.knime.core.data.value.DoubleWriteValue;
-import org.knime.core.data.value.StringReadValue;
-import org.knime.core.data.value.StringWriteValue;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Level;
@@ -39,8 +38,9 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 //TODO create extra project for benchmarks: org.knime.core.data.benchmark
 public class ArrowBenchmarks extends AbstractArrowTest {
 
-	private long m_numRows = 25000;
-	private int m_chunkSize = 17;
+	private int m_x = 1_000_00;
+	private int m_y = 511;
+	private boolean wide = false;
 
 	private CachedTableStore m_store;
 
@@ -60,7 +60,8 @@ public class ArrowBenchmarks extends AbstractArrowTest {
 
 	@Setup(Level.Iteration)
 	public void setupNextStore() throws IOException {
-		m_store = cache(createStore(m_chunkSize, DoubleType.INSTANCE, StringType.INSTANCE));
+		m_store = cache(
+				createStore(m_y, createWideSchema(DoubleType.INSTANCE, wide ? m_x : m_y)));
 	}
 
 	@TearDown(Level.Iteration)
@@ -68,44 +69,76 @@ public class ArrowBenchmarks extends AbstractArrowTest {
 		m_store.close();
 	}
 
-	public void newTablesBenchmark() throws Exception {
-
-		final WriteTable writeTable = TableUtils.createWriteTable(m_store);
-		try (RowWriteCursor writeCursor = writeTable.getCursor()) {
-			final DoubleWriteValue doubleWriteValue = (DoubleWriteValue) writeCursor.get(0);
-			final StringWriteValue stringWriteValue = (StringWriteValue) writeCursor.get(1);
-			for (long i = 0; i < m_numRows; i++) {
-				writeCursor.fwd();
-				doubleWriteValue.setDouble(i);
-				stringWriteValue.setStringValue("Entry " + i % 15);
-			}
-		}
-
-		final ReadTable readTable = TableUtils.createReadTable(m_store);
-		try (RowReadCursor readCursor = readTable.newCursor()) {
-			DoubleReadValue doubleReadValue = (DoubleReadValue) readCursor.get(0);
-			StringReadValue stringReadValue = (StringReadValue) readCursor.get(1);
-			long i = 0;
-			while (readCursor.canFwd()) {
-				readCursor.fwd();
-				assertEquals("Entry " + i % 15, stringReadValue.getStringValue());
-				assertEquals(doubleReadValue.getDouble(), i++, 0.000000001);
-			}
-		}
-	}
+//	public void newTablesBenchmark() throws Exception {
+//
+//		final WriteTable writeTable = TableUtils.createWriteTable(m_store);
+//		try (RowWriteCursor writeCursor = writeTable.getCursor()) {
+//			final DoubleWriteValue doubleWriteValue = (DoubleWriteValue) writeCursor.get(0);
+//			final StringWriteValue stringWriteValue = (StringWriteValue) writeCursor.get(1);
+//			for (long i = 0; i < m_numRows; i++) {
+//				writeCursor.fwd();
+//				doubleWriteValue.setDouble(i);
+//				stringWriteValue.setStringValue("Entry " + i % 15);
+//			}
+//		}
+//
+//		final ReadTable readTable = TableUtils.createReadTable(m_store);
+//		try (RowReadCursor readCursor = readTable.newCursor()) {
+//			DoubleReadValue doubleReadValue = (DoubleReadValue) readCursor.get(0);
+//			StringReadValue stringReadValue = (StringReadValue) readCursor.get(1);
+//			long i = 0;
+//			while (readCursor.canFwd()) {
+//				readCursor.fwd();
+//				assertEquals("Entry " + i % 15, stringReadValue.getStringValue());
+//				assertEquals(doubleReadValue.getDouble(), i++, 0.000000001);
+//			}
+//		}
+//	}
 
 	@Benchmark
 	public void wideDataBenchmark() throws Exception {
-		final DoubleTest benchmarks = new DoubleTest();
-		benchmarks.identityTestWideTable();
+		final int numRows = wide ? m_y : m_x;
+		final int numColumns = wide ? m_x : m_y;
+
+		final WriteTable writeTable = TableUtils.createWriteTable(m_store);
+		try (RowWriteCursor writeCursor = writeTable.getCursor()) {
+			final ValueRange<DoubleWriteValue> doubleWriteValue = RowUtils.getRange(writeCursor, 0, numColumns);
+			for (int i = 0; i < numRows; i++) {
+				writeCursor.fwd();
+				if (i % 100 == 0) {
+					for (int j = 0; j < numColumns; j++) {
+						doubleWriteValue.get(j).setMissing();
+					}
+				} else {
+					for (int j = 0; j < numColumns; j++) {
+						doubleWriteValue.get(j).setDouble(i);
+					}
+				}
+			}
+		}
+		final ReadTable readTable = TableUtils.createReadTable(m_store);
+		try (RowReadCursor readCursor = readTable.newCursor()) {
+			final ValueRange<DoubleReadValue> doubleReadValue = RowUtils.getRange(readCursor, 0, numColumns);
+			for (int i = 0; i < numRows; i++) {
+				readCursor.fwd();
+				if (i % 100 == 0) {
+					for (int j = 0; j < numColumns; j++) {
+						Assert.assertTrue(doubleReadValue.get(j).isMissing());
+					}
+				} else {
+					for (int j = 0; j < numColumns; j++) {
+						assertEquals(i, doubleReadValue.get(j).getDouble(), 0.00000000000000001);
+					}
+				}
+			}
+		}
 	}
 
 //	public static void main(String[] args) throws Exception {
 //		final DoubleTest benchmarks = new DoubleTest();
 //		startup();
-//		for (int i = 0; i < 5; i++) {
+//		for (int i = 0; i < 1; i++) {
 //			System.out.println("\n Starting iteration... " + i);
-//			System.out.println("Setting up store.");
 //			benchmarks.identityTestWideTable();
 //
 //			System.out.println("Running identitiy test.");

@@ -10,6 +10,8 @@ import org.apache.arrow.memory.RootAllocator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.knime.core.data.column.ColumnType;
+import org.knime.core.data.preproc.PreProcTableStore;
+import org.knime.core.data.preproc.PreProcessingConfig;
 import org.knime.core.data.row.RowBatchUtils;
 import org.knime.core.data.table.cache.CachedTableStore;
 import org.knime.core.data.table.store.TableStore;
@@ -47,6 +49,15 @@ public class AbstractArrowTest {
 
 	public CachedTableStore cache(TableStore store) {
 		return RowBatchUtils.cache(store);
+	}
+
+	public PreProcTableStore preproc(TableStore delegate, int... indices) {
+		return new PreProcTableStore(delegate, new PreProcessingConfig() {
+			@Override
+			public int[] getDomainEnabledIndices() {
+				return indices;
+			}
+		});
 	}
 
 	public TableStore createStore(int chunkSize, ColumnType<?, ?>... schema) {
