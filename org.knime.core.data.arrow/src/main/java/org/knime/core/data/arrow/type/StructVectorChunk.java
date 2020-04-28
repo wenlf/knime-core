@@ -1,8 +1,9 @@
-package org.knime.core.data.arrow;
+package org.knime.core.data.arrow.type;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.arrow.vector.complex.StructVector;
+import org.knime.core.data.arrow.FieldVectorChunk;
 import org.knime.core.data.column.ColumnChunk;
 import org.knime.core.data.column.struct.StructChunk;
 
@@ -12,7 +13,7 @@ public class StructVectorChunk implements StructChunk, FieldVectorChunk<StructVe
 	private final StructVector m_vector;
 	private final AtomicInteger m_refCounter = new AtomicInteger(1);
 
-	StructVectorChunk(StructVector vector, FieldVectorChunk<?>... columns) {
+	public StructVectorChunk(StructVector vector, FieldVectorChunk<?>... columns) {
 		m_columns = columns;
 		m_vector = vector;
 	}

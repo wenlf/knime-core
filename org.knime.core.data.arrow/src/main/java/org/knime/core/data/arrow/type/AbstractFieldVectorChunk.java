@@ -1,9 +1,10 @@
-package org.knime.core.data.arrow;
+package org.knime.core.data.arrow.type;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
+import org.knime.core.data.arrow.FieldVectorChunk;
 
 abstract class AbstractFieldVectorChunk<F extends FieldVector> implements FieldVectorChunk<F> {
 

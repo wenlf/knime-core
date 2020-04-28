@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
+import org.knime.core.data.arrow.type.DoubleTest;
 import org.knime.core.data.row.RowReadCursor;
 import org.knime.core.data.row.RowWriteCursor;
 import org.knime.core.data.table.ReadTable;
@@ -67,7 +68,6 @@ public class ArrowBenchmarks extends AbstractArrowTest {
 		m_store.close();
 	}
 
-	@Benchmark
 	public void newTablesBenchmark() throws Exception {
 
 		final WriteTable writeTable = TableUtils.createWriteTable(m_store);
@@ -94,6 +94,12 @@ public class ArrowBenchmarks extends AbstractArrowTest {
 		}
 	}
 
+	@Benchmark
+	public void wideDataBenchmark() throws Exception {
+		final DoubleTest benchmarks = new DoubleTest();
+		benchmarks.identityTestWideTable();
+	}
+
 //	public static void main(String[] args) throws Exception {
 //		final DoubleTest benchmarks = new DoubleTest();
 //		startup();
@@ -112,14 +118,4 @@ public class ArrowBenchmarks extends AbstractArrowTest {
 //		shutdown();
 //	}
 
-	public static void main(String[] args) throws Exception {
-		final DoubleTest benchmarks = new DoubleTest();
-		startup();
-		for (int i = 0; i < 5; i++) {
-			System.out.println("Next... " + i);
-			benchmarks.identityTestWideTable();
-		}
-		System.out.println("Done");
-		shutdown();
-	}
 }

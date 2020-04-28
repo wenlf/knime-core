@@ -1,4 +1,4 @@
-package org.knime.core.data.arrow;
+package org.knime.core.data.arrow.type;
 
 import static org.junit.Assert.assertEquals;
 
@@ -9,6 +9,7 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Test;
+import org.knime.core.data.arrow.AbstractArrowTest;
 import org.knime.core.data.type.DateTimeAccess;
 import org.knime.core.data.value.DateTimeReadValue;
 import org.knime.core.data.value.DateTimeWriteValue;

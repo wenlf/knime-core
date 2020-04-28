@@ -1,10 +1,11 @@
-package org.knime.core.data.arrow;
+package org.knime.core.data.arrow.type;
 
 import static org.junit.Assert.assertEquals;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Assert;
 import org.junit.Test;
+import org.knime.core.data.arrow.AbstractArrowTest;
 import org.knime.core.data.row.RowReadCursor;
 import org.knime.core.data.row.RowUtils;
 import org.knime.core.data.row.RowUtils.ValueRange;
@@ -58,8 +59,8 @@ public class DoubleTest extends AbstractArrowTest {
 	@Test
 	public void identityTestWideTable() throws Exception {
 		final int chunkSize = 2000;
-		final int numRows = 10000;
-		final int numColumns = 30000;
+		final int numRows = 5000;
+		final int numColumns = 10000;
 
 		try (final TableStore store = cache(
 				createStore(chunkSize, createWideSchema(DoubleType.INSTANCE, numColumns)))) {

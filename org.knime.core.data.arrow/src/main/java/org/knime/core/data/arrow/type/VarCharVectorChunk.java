@@ -1,4 +1,4 @@
-package org.knime.core.data.arrow;
+package org.knime.core.data.arrow.type;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -19,11 +19,11 @@ public class VarCharVectorChunk extends AbstractFieldVectorChunk<VarCharVector> 
 	private final CharsetEncoder ENCODER = Charset.forName("UTF-8").newEncoder()
 			.onMalformedInput(CodingErrorAction.REPLACE).onUnmappableCharacter(CodingErrorAction.REPLACE);
 
-	VarCharVectorChunk(BufferAllocator allocator) {
+	public VarCharVectorChunk(BufferAllocator allocator) {
 		super(allocator);
 	}
 
-	VarCharVectorChunk(VarCharVector vector) {
+	public VarCharVectorChunk(VarCharVector vector) {
 		super(vector);
 	}
 

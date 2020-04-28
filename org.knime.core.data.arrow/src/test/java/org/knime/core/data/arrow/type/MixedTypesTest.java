@@ -1,7 +1,8 @@
-package org.knime.core.data.arrow;
+package org.knime.core.data.arrow.type;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.knime.core.data.arrow.AbstractArrowTest;
 import org.knime.core.data.row.RowReadCursor;
 import org.knime.core.data.row.RowUtils;
 import org.knime.core.data.row.RowUtils.ValueRange;
