@@ -80,6 +80,12 @@ public class ArrayTableStoreFactory implements TableStoreFactory {
 			public ColumnType<?, ?>[] getColumnTypes() {
 				return types;
 			}
+
+			@Override
+			public long size() {
+				// TODO Auto-generated method stub
+				return 0;
+			}
 		};
 	}
 }

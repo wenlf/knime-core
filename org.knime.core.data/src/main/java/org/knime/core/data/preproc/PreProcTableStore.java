@@ -164,4 +164,9 @@ public class PreProcTableStore implements TableStore {
 		return casted;
 	}
 
+	@Override
+	public long size() {
+		return m_delegate.size();
+	}
+
 }

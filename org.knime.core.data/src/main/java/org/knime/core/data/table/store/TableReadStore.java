@@ -8,4 +8,6 @@ public interface TableReadStore {
 	RowBatchReader createReader(RowBatchReaderConfig config);
 
 	ColumnType<?, ?>[] getColumnTypes();
+
+	long size();
 }

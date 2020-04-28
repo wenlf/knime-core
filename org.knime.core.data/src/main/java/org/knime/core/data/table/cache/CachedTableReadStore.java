@@ -170,4 +170,10 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 	public void close() throws Exception {
 		clear();
 	}
+
+	@Override
+	public long size() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
 }

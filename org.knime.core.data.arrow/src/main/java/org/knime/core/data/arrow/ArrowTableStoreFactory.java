@@ -55,6 +55,8 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 
 		private TableStoreConfig m_config;
 
+		private long m_size;
+
 		ArrowTableStore(File file, final ColumnType<?, ?>[] types, TableStoreConfig config) {
 			m_types = types;
 			m_file = file;
@@ -75,6 +77,7 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 						for (int i = 0; i < vectorData.length; i++) {
 							vectorData[i] = ((FieldVectorChunk<?>) recordData[i]).get();
 						}
+						m_size += record.getNumValues();
 						m_writer.write(vectorData);
 					} catch (IOException e) {
 						// TODO
@@ -155,6 +158,11 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 			// TODO use child allocator per store!!
 			return new ArrowRowBatchFactory(m_types, m_root,
 					BaseAllocator.nextPowerOfTwo(m_config.getInitialChunkSize()) - 1);
+		}
+
+		@Override
+		public long size() {
+			return m_size;
 		}
 	}
 }
