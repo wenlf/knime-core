@@ -1,6 +1,5 @@
 package org.knime.core.data.type;
 
-import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -36,8 +35,17 @@ public class StringDomainCalculator implements DomainCalculator<StringChunk, Str
 
 	@Override
 	public StringDomain merge(StringDomain one, StringDomain other) {
-		Set<String> union = new HashSet<String>(one.getValues());
-		union.addAll(other.getValues());
+		// TODO preserve order of appearance in original table
+		Set<String> union;
+		if (one.getValues() != null) {
+			union = new TreeSet<>(one.getValues());
+		} else {
+			union = new TreeSet<>();
+		}
+
+		if (other.getValues() != null) {
+			union.addAll(other.getValues());
+		}
 		return new StringDomain(union, one.getNumMissing() + other.getNumMissing(),
 				one.getNumNonMissing() + other.getNumNonMissing());
 	}
