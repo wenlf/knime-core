@@ -269,7 +269,7 @@ public class DataContainer implements RowAppender {
     private DataTableSpec m_spec;
 
     /** Table to return. Not null when close() is called. */
-    private ContainerTable m_table;
+    private BufferedContainerTable m_table;
 
     private DataTableDomainCreator m_domainCreator;
 
@@ -606,8 +606,8 @@ public class DataContainer implements RowAppender {
             String key = dke.getKey();
             throw new DuplicateKeyException("Found duplicate row ID \"" + key + "\" (at unknown position)", key);
         }
-        m_table = new ContainerTable(m_buffer);
-        m_localMap.put(m_table.getBufferID(), m_table);
+        m_table = new BufferedContainerTable(m_buffer);
+        m_localMap.put(m_table.getTableId(), m_table);
         m_buffer = null;
         m_spec = null;
         m_duplicateChecker.clear();
@@ -993,13 +993,13 @@ public class DataContainer implements RowAppender {
         ExecutionMonitor e = exec;
         boolean canUseBuffer = table instanceof ContainerTable;
         if (canUseBuffer) {
-            Buffer b = ((ContainerTable)table).getBuffer();
+            Buffer b = ((BufferedContainerTable)table).getBuffer();
             if (b.containsBlobCells() && b.getBufferID() != -1) {
                 canUseBuffer = false;
             }
         }
         if (canUseBuffer) {
-            buf = ((ContainerTable)table).getBuffer();
+            buf = ((BufferedContainerTable)table).getBuffer();
         } else {
             exec.setMessage("Archiving table");
             e = exec.createSubProgress(0.8);
@@ -1067,7 +1067,7 @@ public class DataContainer implements RowAppender {
            true);
         // executing the createBuffer() method will start the copying process
         Buffer buffer = coa.createBuffer(in);
-        return new ContainerTable(buffer);
+        return new BufferedContainerTable(buffer);
     }
 
     /**
@@ -1099,7 +1099,7 @@ public class DataContainer implements RowAppender {
             new CopyOnAccessTask(zipFileRef, null, -1, NotInWorkflowDataRepository.newInstance(), rowKeys);
         // executing the createBuffer() method will start the copying process
         Buffer buffer = coa.createBuffer();
-        return new ContainerTable(buffer);
+        return new BufferedContainerTable(buffer);
     }
 
     /**
@@ -1126,7 +1126,7 @@ public class DataContainer implements RowAppender {
      * @return Table contained in <code>zipFile</code>.
      */
     static ContainerTable readFromZipDelayed(final CopyOnAccessTask c, final DataTableSpec spec) {
-        return new ContainerTable(c, spec);
+        return new BufferedContainerTable(c, spec);
     }
 
     /** the temp file will have a time stamp in its name. */

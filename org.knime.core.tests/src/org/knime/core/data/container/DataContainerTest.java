@@ -94,10 +94,10 @@ import junit.framework.TestCase;
 @SuppressWarnings("deprecation")
 public class DataContainerTest extends TestCase {
 
-    private static final DataTableSpec EMPTY_SPEC = new DataTableSpec(
-            new String[] {}, new DataType[] {});
-    private static final DataTableSpec SPEC_STR_INT_DBL = new DataTableSpec(new String[] {"String", "Int", "Double"},
-            new DataType[] {StringCell.TYPE, IntCell.TYPE, DoubleCell.TYPE});
+    private static final DataTableSpec EMPTY_SPEC = new DataTableSpec(new String[]{}, new DataType[]{});
+
+    private static final DataTableSpec SPEC_STR_INT_DBL = new DataTableSpec(new String[]{"String", "Int", "Double"},
+        new DataType[]{StringCell.TYPE, IntCell.TYPE, DoubleCell.TYPE});
 
     /**
      * Main method. Ignores argument.
@@ -113,8 +113,7 @@ public class DataContainerTest extends TestCase {
      */
     public static final void testOpen() {
         DataContainer c = new DataContainer(EMPTY_SPEC);
-        c.addRowToTable(new DefaultRow(
-                "no one is going to read me", new DataCell[] {}));
+        c.addRowToTable(new DefaultRow("no one is going to read me", new DataCell[]{}));
         assertTrue(c.isOpen());
     }
 
@@ -145,13 +144,12 @@ public class DataContainerTest extends TestCase {
      * @throws Exception
      */
     public static final void testMemoryAlertAfterClose() throws Exception {
-        DataContainer container = new DataContainer(SPEC_STR_INT_DBL,
-                true, Integer.MAX_VALUE, false);
+        DataContainer container = new DataContainer(SPEC_STR_INT_DBL, true, Integer.MAX_VALUE, false);
         for (RowIterator it = generateRows(100000); it.hasNext();) {
             container.addRowToTable(it.next());
         }
         container.close();
-        container.getBufferedTable().getBuffer();
+        ((BufferedContainerTable)container.getBufferedTable()).getBuffer();
         MemoryAlertSystem.getInstance().sendMemoryAlert();
         RowIterator tableIterator = container.getTable().iterator();
         for (RowIterator it = generateRows(100000); it.hasNext();) {
@@ -163,8 +161,7 @@ public class DataContainerTest extends TestCase {
      * @throws Exception
      */
     public static final void testMemoryAlertAfterCloseWhileReading() throws Exception {
-        DataContainer container = new DataContainer(SPEC_STR_INT_DBL,
-                true, Integer.MAX_VALUE, false);
+        DataContainer container = new DataContainer(SPEC_STR_INT_DBL, true, Integer.MAX_VALUE, false);
         int count = 100000;
         for (RowIterator it = generateRows(count); it.hasNext();) {
             container.addRowToTable(it.next());
@@ -176,7 +173,7 @@ public class DataContainerTest extends TestCase {
         for (i = 0; i < count / 2; i++) {
             assertEquals(it.next(), tableIterator.next());
         }
-        Buffer buffer = container.getBufferedTable().getBuffer();
+        Buffer buffer = ((BufferedContainerTable)container.getBufferedTable()).getBuffer();
         buffer.flushBuffer();
 
         for (; i < count; i++) {
@@ -195,6 +192,7 @@ public class DataContainerTest extends TestCase {
         for (; i < nrRows / 2; i++) {
             cont.addRowToTable(it.next());
         }
+        @SuppressWarnings("resource")
         Buffer buffer = cont.getBuffer();
         buffer.flushBuffer();
         for (; i < nrRows; i++) {
@@ -219,7 +217,7 @@ public class DataContainerTest extends TestCase {
             container.addRowToTable(it.next());
         }
         container.close();
-        final Buffer buffer = container.getBufferedTable().getBuffer();
+        final Buffer buffer = ((BufferedContainerTable)container.getBufferedTable()).getBuffer();
         assertFalse(buffer.isHeldInMemory());
         buffer.setRestoreIntoMemoryOnCacheMiss();
         RowIterator tableIterator1 = container.getTable().iterator();
@@ -279,8 +277,8 @@ public class DataContainerTest extends TestCase {
 
             @Override
             public DataRow next() {
-                DefaultRow r = new DefaultRow(RowKey.createRowKey(m_index),
-                        new StringCell("String " + m_index), new IntCell(m_index), new DoubleCell(m_index));
+                DefaultRow r = new DefaultRow(RowKey.createRowKey(m_index), new StringCell("String " + m_index),
+                    new IntCell(m_index), new DoubleCell(m_index));
                 m_index++;
                 return r;
             }
@@ -312,20 +310,17 @@ public class DataContainerTest extends TestCase {
      */
     public final void testDuplicateKey() {
         String[] colNames = new String[]{"Column 1", "Column 2"};
-        DataType[] colTypes = new DataType[] {
-                StringCell.TYPE,
-                IntCell.TYPE
-        };
+        DataType[] colTypes = new DataType[]{StringCell.TYPE, IntCell.TYPE};
         DataTableSpec spec1 = new DataTableSpec(colNames, colTypes);
         DataContainer c = new DataContainer(spec1);
         RowKey r1Key = new RowKey("row 1");
         DataCell r1Cell1 = new StringCell("Row 1, Cell 1");
         DataCell r1Cell2 = new IntCell(12);
-        DataRow r1 = new DefaultRow(r1Key, new DataCell[] {r1Cell1, r1Cell2});
+        DataRow r1 = new DefaultRow(r1Key, new DataCell[]{r1Cell1, r1Cell2});
         RowKey r2Key = new RowKey("row 2");
         DataCell r2Cell1 = new StringCell("Row 2, Cell 1");
         DataCell r2Cell2 = new IntCell(22);
-        DataRow r2 = new DefaultRow(r2Key, new DataCell[] {r2Cell1, r2Cell2});
+        DataRow r2 = new DefaultRow(r2Key, new DataCell[]{r2Cell1, r2Cell2});
         c.addRowToTable(r1);
         c.addRowToTable(r2);
 
@@ -345,24 +340,21 @@ public class DataContainerTest extends TestCase {
      */
     public final void testIncompatibleTypes() {
         String[] colNames = new String[]{"Column 1", "Column 2"};
-        DataType[] colTypes = new DataType[] {
-                StringCell.TYPE,
-                IntCell.TYPE
-        };
+        DataType[] colTypes = new DataType[]{StringCell.TYPE, IntCell.TYPE};
         DataTableSpec spec1 = new DataTableSpec(colNames, colTypes);
         DataContainer c = new DataContainer(spec1);
         RowKey r1Key = new RowKey("row 1");
         DataCell r1Cell1 = new StringCell("Row 1, Cell 1");
         DataCell r1Cell2 = new IntCell(12);
-        DataRow r1 = new DefaultRow(r1Key, new DataCell[] {r1Cell1, r1Cell2});
+        DataRow r1 = new DefaultRow(r1Key, new DataCell[]{r1Cell1, r1Cell2});
         RowKey r2Key = new RowKey("row 2");
         DataCell r2Cell1 = new StringCell("Row 2, Cell 1");
         DataCell r2Cell2 = new IntCell(22);
-        DataRow r2 = new DefaultRow(r2Key, new DataCell[] {r2Cell1, r2Cell2});
+        DataRow r2 = new DefaultRow(r2Key, new DataCell[]{r2Cell1, r2Cell2});
         RowKey r3Key = new RowKey("row 3");
         DataCell r3Cell1 = new StringCell("Row 3, Cell 1");
         DataCell r3Cell2 = new IntCell(32);
-        DataRow r3 = new DefaultRow(r3Key, new DataCell[] {r3Cell1, r3Cell2});
+        DataRow r3 = new DefaultRow(r3Key, new DataCell[]{r3Cell1, r3Cell2});
         c.addRowToTable(r1);
         c.addRowToTable(r2);
         c.addRowToTable(r3);
@@ -371,7 +363,7 @@ public class DataContainerTest extends TestCase {
         RowKey r4Key = new RowKey("row 4");
         DataCell r4Cell1 = new StringCell("Row 4, Cell 1");
         DataCell r4Cell2 = new DoubleCell(42.0); // not allowed
-        DataRow r4 = new DefaultRow(r4Key, new DataCell[] {r4Cell1, r4Cell2});
+        DataRow r4 = new DefaultRow(r4Key, new DataCell[]{r4Cell1, r4Cell2});
         try {
             c.addRowToTable(r4);
             c.close();
@@ -381,7 +373,7 @@ public class DataContainerTest extends TestCase {
                 throw e;
             } else {
                 NodeLogger.getLogger(getClass()).debug("Got expected exception: " + e.getCause().getClass(),
-                                                       e.getCause());
+                    e.getCause());
             }
         } catch (IllegalArgumentException e) {
             NodeLogger.getLogger(getClass()).debug("Got expected exception: " + e.getClass(), e);
@@ -394,24 +386,21 @@ public class DataContainerTest extends TestCase {
      */
     public final void testWrongCellCountRow() {
         String[] colNames = new String[]{"Column 1", "Column 2"};
-        DataType[] colTypes = new DataType[] {
-                StringCell.TYPE,
-                IntCell.TYPE
-        };
+        DataType[] colTypes = new DataType[]{StringCell.TYPE, IntCell.TYPE};
         DataTableSpec spec1 = new DataTableSpec(colNames, colTypes);
         DataContainer c = new DataContainer(spec1);
         RowKey r1Key = new RowKey("row 1");
         DataCell r1Cell1 = new StringCell("Row 1, Cell 1");
         DataCell r1Cell2 = new IntCell(12);
-        DataRow r1 = new DefaultRow(r1Key, new DataCell[] {r1Cell1, r1Cell2});
+        DataRow r1 = new DefaultRow(r1Key, new DataCell[]{r1Cell1, r1Cell2});
         RowKey r2Key = new RowKey("row 2");
         DataCell r2Cell1 = new StringCell("Row 2, Cell 1");
         DataCell r2Cell2 = new IntCell(22);
-        DataRow r2 = new DefaultRow(r2Key, new DataCell[] {r2Cell1, r2Cell2});
+        DataRow r2 = new DefaultRow(r2Key, new DataCell[]{r2Cell1, r2Cell2});
         RowKey r3Key = new RowKey("row 3");
         DataCell r3Cell1 = new StringCell("Row 3, Cell 1");
         DataCell r3Cell2 = new IntCell(32);
-        DataRow r3 = new DefaultRow(r3Key, new DataCell[] {r3Cell1, r3Cell2});
+        DataRow r3 = new DefaultRow(r3Key, new DataCell[]{r3Cell1, r3Cell2});
         c.addRowToTable(r1);
         c.addRowToTable(r2);
         c.addRowToTable(r3);
@@ -421,8 +410,7 @@ public class DataContainerTest extends TestCase {
         DataCell r5Cell1 = new StringCell("Row 5, Cell 1");
         DataCell r5Cell2 = new IntCell(52);
         DataCell r5Cell3 = new DoubleCell(53.0);
-        DataRow r5 = new DefaultRow(
-                r5Key, new DataCell[] {r5Cell1, r5Cell2, r5Cell3});
+        DataRow r5 = new DefaultRow(r5Key, new DataCell[]{r5Cell1, r5Cell2, r5Cell3});
         try {
             c.addRowToTable(r5);
             c.close();
@@ -432,7 +420,7 @@ public class DataContainerTest extends TestCase {
                 throw e;
             } else {
                 NodeLogger.getLogger(getClass()).debug("Got expected exception: " + e.getCause().getClass(),
-                                                       e.getCause());
+                    e.getCause());
             }
         } catch (IllegalArgumentException e) {
             NodeLogger.getLogger(getClass()).debug("Got expected exception: " + e.getClass(), e);
@@ -498,10 +486,17 @@ public class DataContainerTest extends TestCase {
         for (int c = 0; c < colCount; c++) {
             names[c] = "Column " + c;
             switch (c % 3) {
-                case 0: types[c] = DoubleCell.TYPE; break;
-                case 1: types[c] = StringCell.TYPE; break;
-                case 2: types[c] = IntCell.TYPE; break;
-                default: throw new InternalError();
+                case 0:
+                    types[c] = DoubleCell.TYPE;
+                    break;
+                case 1:
+                    types[c] = StringCell.TYPE;
+                    break;
+                case 2:
+                    types[c] = IntCell.TYPE;
+                    break;
+                default:
+                    throw new InternalError();
             }
         }
         DataTableSpec spec = new DataTableSpec(names, types);
@@ -524,10 +519,8 @@ public class DataContainerTest extends TestCase {
                 try {
                     int i = 0;
                     Random rand1 = new Random(seed);
-                    for (RowIterator it = table.iterator();
-                        it.hasNext(); i++) {
-                        DataRow row1 =
-                            createRandomRow(i, colCount, rand1, conv);
+                    for (RowIterator it = table.iterator(); it.hasNext(); i++) {
+                        DataRow row1 = createRandomRow(i, colCount, rand1, conv);
                         DataRow row2 = it.next();
                         assertEquals(row1, row2);
                     }
@@ -537,7 +530,7 @@ public class DataContainerTest extends TestCase {
                 }
             }
         }; // Runnable
-        // make two threads read the buffer (file) concurrently.
+           // make two threads read the buffer (file) concurrently.
         Thread t1 = new Thread(runnable);
         Thread t2 = new Thread(runnable);
         t1.start();
@@ -557,8 +550,11 @@ public class DataContainerTest extends TestCase {
         }
     } // testBigFile()
 
-    /** Restoring into main memory.
-     * @see ContainerTable#restoreIntoMemory()*/
+    /**
+     * Restoring into main memory.
+     *
+     * @see ContainerTable#restoreIntoMemory()
+     */
     public void testRestoreIntoMemory() {
         // with these setting (50, 100) it will write an 250MB cache file
         // (the latest data this value was checked: 31. August 2006...)
@@ -569,10 +565,17 @@ public class DataContainerTest extends TestCase {
         for (int c = 0; c < colCount; c++) {
             names[c] = "Column " + c;
             switch (c % 3) {
-                case 0: types[c] = DoubleCell.TYPE; break;
-                case 1: types[c] = StringCell.TYPE; break;
-                case 2: types[c] = IntCell.TYPE; break;
-                default: throw new InternalError();
+                case 0:
+                    types[c] = DoubleCell.TYPE;
+                    break;
+                case 1:
+                    types[c] = StringCell.TYPE;
+                    break;
+                case 2:
+                    types[c] = IntCell.TYPE;
+                    break;
+                default:
+                    throw new InternalError();
             }
         }
         DataTableSpec spec = new DataTableSpec(names, types);
@@ -588,9 +591,9 @@ public class DataContainerTest extends TestCase {
             row = null;
         }
         container.close();
-        assertTrue(container.getBufferedTable().getBuffer().isFlushedToDisk());
+        final BufferedContainerTable table = (BufferedContainerTable) container.getBufferedTable();
+        assertTrue(table.getBuffer().isFlushedToDisk());
         final Throwable[] throwables = new Throwable[1];
-        final ContainerTable table = container.getBufferedTable();
         table.restoreIntoMemory();
         // different iterators restore the content, each of which one row
         RowIterator[] its = new RowIterator[10];
@@ -606,10 +609,8 @@ public class DataContainerTest extends TestCase {
                 try {
                     int i = 0;
                     Random rand1 = new Random(seed);
-                    for (RowIterator it = table.iterator();
-                        it.hasNext(); i++) {
-                        DataRow row1 =
-                            createRandomRow(i, colCount, rand1, conv);
+                    for (RowIterator it = table.iterator(); it.hasNext(); i++) {
+                        DataRow row1 = createRandomRow(i, colCount, rand1, conv);
                         DataRow row2 = it.next();
                         assertEquals(row1, row2);
                     }
@@ -619,7 +620,7 @@ public class DataContainerTest extends TestCase {
                 }
             }
         }; // Runnable
-        // make two threads read the buffer (file) concurrently.
+           // make two threads read the buffer (file) concurrently.
         Thread t1 = new Thread(runnable);
         Thread t2 = new Thread(runnable);
         t1.start();
@@ -644,21 +645,18 @@ public class DataContainerTest extends TestCase {
         RowKey r1Key = new RowKey("row 1");
         DataCell r1Cell1 = new StringCell("Row 1, Cell 1");
         DataCell r1Cell2 = new IntCell(12);
-        DataRow r1 = new DefaultRow(r1Key, new DataCell[] {r1Cell1, r1Cell2});
+        DataRow r1 = new DefaultRow(r1Key, new DataCell[]{r1Cell1, r1Cell2});
         RowKey r2Key = new RowKey("row 2");
         DataCell r2Cell1 = new StringCell("Row 2, Cell 1");
         DataCell r2Cell2 = new IntCell(22);
-        DataRow r2 = new DefaultRow(r2Key, new DataCell[] {r2Cell1, r2Cell2});
+        DataRow r2 = new DefaultRow(r2Key, new DataCell[]{r2Cell1, r2Cell2});
         RowKey r3Key = new RowKey("row 3");
         DataCell r3Cell1 = new StringCell("Row 3, Cell 1");
         DataCell r3Cell2 = new IntCell(32);
-        DataRow r3 = new DefaultRow(r3Key, new DataCell[] {r3Cell1, r3Cell2});
+        DataRow r3 = new DefaultRow(r3Key, new DataCell[]{r3Cell1, r3Cell2});
 
         String[] colNames = new String[]{"Column 1", "Column 2"};
-        DataType[] colTypes = new DataType[] {
-                StringCell.TYPE,
-                IntCell.TYPE
-        };
+        DataType[] colTypes = new DataType[]{StringCell.TYPE, IntCell.TYPE};
         DataTableSpec spec1 = new DataTableSpec(colNames, colTypes);
         DataContainer c = new DataContainer(spec1);
         // add in different order
@@ -670,8 +668,7 @@ public class DataContainerTest extends TestCase {
         DataTableSpec tableSpec = table.getDataTableSpec();
 
         // check possible values
-        Set<DataCell> possibleValues =
-            tableSpec.getColumnSpec(0).getDomain().getValues();
+        Set<DataCell> possibleValues = tableSpec.getColumnSpec(0).getDomain().getValues();
         assertEquals(possibleValues.size(), 3);
         assertTrue(possibleValues.contains(r1Cell1));
         assertTrue(possibleValues.contains(r2Cell1));
@@ -688,8 +685,7 @@ public class DataContainerTest extends TestCase {
 
         min = tableSpec.getColumnSpec(1).getDomain().getLowerBound();
         max = tableSpec.getColumnSpec(1).getDomain().getUpperBound();
-        Comparator<DataCell> comparator =
-            tableSpec.getColumnSpec(1).getType().getComparator();
+        Comparator<DataCell> comparator = tableSpec.getColumnSpec(1).getType().getComparator();
         assertTrue(comparator.compare(min, max) < 0);
         assertEquals(min, r1Cell2);
         assertEquals(max, r3Cell2);
@@ -708,7 +704,7 @@ public class DataContainerTest extends TestCase {
     @Test(timeout = 5000)
     public void testWriteRead() throws IOException, CanceledExecutionException, InterruptedException {
         // (1) create table
-        final ContainerTable writeTable = generateMediumSizedTable();
+        final BufferedContainerTable writeTable = generateMediumSizedTable();
 
         // (2) create file to write to / read from and start monitoring file creation and deletion in temp dir
         final File file = FileUtil.createTempFile("testWriteStream", ".zip");
@@ -776,7 +772,7 @@ public class DataContainerTest extends TestCase {
      *
      * @return a small-sized table
      */
-    static ContainerTable generateSmallSizedTable() {
+    static BufferedContainerTable generateSmallSizedTable() {
         // in particular, we simply instantiate a tiny container and add a slighlty larger number of rows to it
         final DataContainer container = new DataContainer(SPEC_STR_INT_DBL, true, 20, false);
         final int count = 5;
@@ -784,7 +780,7 @@ public class DataContainerTest extends TestCase {
             container.addRowToTable(it.next());
         }
         container.close();
-        return container.getBufferedTable();
+        return (BufferedContainerTable)container.getBufferedTable();
     }
 
     /**
@@ -793,7 +789,7 @@ public class DataContainerTest extends TestCase {
      *
      * @return a medium-sized table
      */
-    static ContainerTable generateMediumSizedTable() {
+    static BufferedContainerTable generateMediumSizedTable() {
         // in particular, we simply instantiate a tiny container and add a slighlty larger number of rows to it
         final DataContainer container = new DataContainer(SPEC_STR_INT_DBL, true, 10, false);
         final int count = 20;
@@ -801,7 +797,7 @@ public class DataContainerTest extends TestCase {
             container.addRowToTable(it.next());
         }
         container.close();
-        return container.getBufferedTable();
+        return (BufferedContainerTable)container.getBufferedTable();
     }
 
     static DataRow createRandomRow(final int index, final int colCount, final Random rand1,

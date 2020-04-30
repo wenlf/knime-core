@@ -41,33 +41,35 @@
  *  may freely choose the license terms applicable to such Node, including
  *  when such Node is propagated with or for interoperation with KNIME.
  * -------------------------------------------------------------------
-
+ *
+ * History
+ *   Apr 20, 2006 (thor): created
  */
 package org.knime.core.data.container;
 
-import org.knime.core.node.BufferedDataTable.KnowsRowCountTable;
+public interface WritableContainer extends RowAppender, AutoCloseable {
 
-/**
- * Class implementing the <code>DataTable</code> interface and using a buffer from a <code>DataContainer</code> as data
- * source. This class doesn't do functional things. It only provides the <code>DataTable</code> methods.
- *
- * <p>
- * We split it from the <code>Buffer</code> implementation as a buffer is dynamic in size. This table should only be
- * used when the buffer has been fixed.
- *
- * @author Bernd Wiswedel, University of Konstanz
- */
-public interface ContainerTable extends KnowsRowCountTable {
+    @Override
+    void close();
 
     /**
      * @return
      */
-    int getTableId();
+    long size();
 
     /**
-     * TODO only used for tests. can we remove that?
+     *
+     */
+    void clear();
+
+    /**
      * @return
      */
-    boolean isOpen();
+    ContainerTable getTable();
+
+    /**
+     * @param maxPossibleValues
+     */
+    void setMaxPossibleValues(int maxPossibleValues);
 
 }
