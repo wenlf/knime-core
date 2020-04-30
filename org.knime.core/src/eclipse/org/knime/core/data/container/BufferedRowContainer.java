@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Apr 29, 2020 (dietzc): created
+ *   Apr 30, 2020 (dietzc): created
  */
 package org.knime.core.data.container;
 
@@ -55,7 +55,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,26 +88,57 @@ import org.knime.core.data.util.memory.MemoryAlertSystem;
 import org.knime.core.internal.ReferencedFile;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
-import org.knime.core.node.NodeLogger;
+import org.knime.core.node.KNIMEConstants;
 import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.NodeContext;
+import org.knime.core.node.workflow.WorkflowDataRepository;
 import org.knime.core.util.DuplicateChecker;
 import org.knime.core.util.DuplicateKeyException;
 
 /**
  *
- * @author Christian Dietz
+ * @author dietzc
  */
-final class BufferedContainer implements WritableContainer {
+public class BufferedRowContainer implements RowContainer {
 
     /** The executor, which runs the IO tasks. Currently used only while writing rows. */
     static final ThreadPoolExecutor ASYNC_EXECUTORS;
 
-    private DataTableDomainCreator m_domainCreator;
+    /**
+     * The cache size for asynchronous table writing. It's the number of rows that are kept in memory before handing it
+     * to the writer routines. The default value can be changed using the java property
+     * {@link KNIMEConstants#PROPERTY_ASYNC_WRITE_CACHE_SIZE}.
+     *
+     * @deprecated access via {@link DataContainerSettings#getDefault()}
+     */
+    @Deprecated
+    static final int ASYNC_CACHE_SIZE;
+
+    /**
+     * Whether to use synchronous IO while adding rows to a buffer or reading from an file iterator. The default value
+     * can be changed by setting the appropriate java property {@link KNIMEConstants#PROPERTY_SYNCHRONOUS_IO} at
+     * startup.
+     *
+     * @deprecated access via {@link DataContainerSettings#getDefault()}
+     */
+    @Deprecated
+    static final boolean SYNCHRONOUS_IO;
+
+    /**
+     * The default value for initializing the domain.
+     *
+     * @deprecated access via {@link DataContainerSettings#getDefault()}
+     */
+    @Deprecated
+    static final boolean INIT_DOMAIN;
 
     static {
         final DataContainerSettings defaults = DataContainerSettings.getDefault();
+        ASYNC_CACHE_SIZE = defaults.getRowBatchSize();
+        SYNCHRONOUS_IO = defaults.isForceSequentialRowHandling();
+        INIT_DOMAIN = defaults.getInitializeDomain();
         // see also {@link Executors#fixedThradPool(ThreadFactory)}
         ASYNC_EXECUTORS = new ThreadPoolExecutor(defaults.getMaxContainerThreads(), defaults.getMaxContainerThreads(),
             10L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
@@ -123,15 +153,17 @@ final class BufferedContainer implements WritableContainer {
     }
 
     /**
-     * A file store handler. It's lazy initialized in this class. The buffered data container sets the FSH of the
-     * corresponding node. A plain data container will copy file store cells.
-     */
-    private final IWriteFileStoreHandler m_fileStoreHandler;
-
-    /**
      * Whether to force a copy of any added blob. See {@link #setForceCopyOfBlobs(boolean)} for details.
      */
     private boolean m_forceCopyOfBlobs;
+
+    /**
+     * The object that instantiates the buffer, may be set right after constructor call before any rows are added.
+     */
+    private BufferCreator m_bufferCreator;
+
+    /** The object that saves the rows. */
+    private Buffer m_buffer;
 
     /**
      * The current number of objects added to this container. In a synchronous case this number is equal to
@@ -201,28 +233,33 @@ final class BufferedContainer implements WritableContainer {
     /** The tablespec of the return table. */
     private DataTableSpec m_spec;
 
-    private final BufferCreator m_bufferCreator;
+    private DataTableDomainCreator m_domainCreator;
 
-    private final IDataRepository m_dataRepository;
+    /** repository for blob and filestore (de)serialization and table id handling */
+    private IDataRepository m_repository;
 
-    private final Map<Integer, ContainerTable> m_localMap;
+    // TODO
+    private final Map<Integer, ContainerTable> m_localRepository;
 
-    private Buffer m_buffer;
+    /**
+     * A file store handler. It's lazy initialized in this class. The buffered data container sets the FSH of the
+     * corresponding node. A plain data container will copy file store cells.
+     */
+    private IWriteFileStoreHandler m_fileStoreHandler;
 
     private BufferedContainerTable m_table;
 
     /**
      * @param spec
-     * @param settings
+     * @param withForceSequentialRowHandling
      * @param repository
-     * @param localTableRepository
-     * @param fileStoreHandler
-     * @param forceCopyOfBlobs
-     * @param rowKeys
      */
-    public BufferedContainer(final DataTableSpec spec, final DataContainerSettings settings,
-        final IDataRepository repository, final Map<Integer, ContainerTable> localTableRepository,
+    BufferedRowContainer(final DataTableSpec spec, final DataContainerSettings settings,
+        final IDataRepository repository, final Map<Integer, ContainerTable> localRepository,
         final IWriteFileStoreHandler fileStoreHandler, final boolean forceCopyOfBlobs, final boolean rowKeys) {
+        CheckUtils.checkArgumentNotNull(spec, "Spec must not be null!");
+        CheckUtils.checkArgument(settings.getMaxCellsInMemory() >= 0, "Cell count must be positive: %s",
+            settings.getMaxCellsInMemory());
         m_spec = spec;
         m_duplicateChecker = settings.createDuplicateChecker();
         m_forceSequentialRowHandling = settings.isForceSequentialRowHandling();
@@ -253,8 +290,9 @@ final class BufferedContainer implements WritableContainer {
         final int colCount = spec.getNumColumns();
         m_maxRowsInMemory = settings.getMaxCellsInMemory() / ((colCount > 0) ? colCount : 1);
         m_bufferCreator = rowKeys ? new BufferCreator(settings.getBufferSettings()) : new NoKeyBufferCreator();
-        m_dataRepository = repository;
-        m_localMap = localTableRepository;
+        m_forceCopyOfBlobs = forceCopyOfBlobs;
+        m_repository = repository;
+        m_localRepository = localRepository;
         m_fileStoreHandler = fileStoreHandler;
     }
 
@@ -360,14 +398,157 @@ final class BufferedContainer implements WritableContainer {
     }
 
     /**
+     * Returns <code>true</code> if the container has been initialized with <code>DataTableSpec</code> and is ready to
+     * accept rows.
+     *
+     * <p>
+     * This implementation returns <code>!isClosed()</code>;
+     *
+     * @return <code>true</code> if container is accepting rows.
+     */
+    public boolean isOpen() {
+        return !isClosed();
+    }
+
+    /**
+     * Returns <code>true</code> if table has been closed and <code>getTable()</code> will return a
+     * <code>DataTable</code> object.
+     *
+     * @return <code>true</code> if table is available, <code>false</code> otherwise.
+     */
+    @Override
+    public boolean isClosed() {
+        return m_table != null;
+    }
+
+    /**
+     * Closes container and creates table that can be accessed by <code>getTable()</code>. Successive calls of
+     * <code>addRowToTable</code> will fail with an exception.
+     *
+     * @throws IllegalStateException If container is not open.
+     * @throws DuplicateKeyException If the final check for duplicate row keys fails.
+     * @throws DataContainerException If the duplicate check fails for an unknown IO problem
+     */
+    @Override
+    public void close() {
+        if (isClosed()) {
+            return;
+        }
+        if (m_buffer == null) {
+            m_buffer = m_bufferCreator.createBuffer(m_spec, m_maxRowsInMemory, createInternalBufferID(), m_repository,
+                m_localRepository, m_fileStoreHandler);
+        }
+        if (!m_forceSequentialRowHandling) {
+            try {
+                if (m_writeThrowable.get() == null && !m_curBatch.isEmpty()) {
+                    submit();
+                }
+                waitForRunnableTermination();
+            } catch (final InterruptedException ie) {
+                m_writeThrowable.compareAndSet(null, ie);
+            }
+            checkAsyncWriteThrowable();
+            for (final DataTableDomainCreator domainCreator : m_domainUpdaterPool) {
+                m_domainCreator.merge(domainCreator);
+            }
+        }
+        // create table spec _after_ all_ rows have been added (i.e. wait for
+        // asynchronous write thread to finish)
+        DataTableSpec finalSpec = m_domainCreator.createSpec();
+        m_buffer.close(finalSpec);
+        try {
+            m_duplicateChecker.checkForDuplicates();
+        } catch (IOException ioe) {
+            throw new DataContainerException("Failed to check for duplicate row IDs", ioe);
+        } catch (DuplicateKeyException dke) {
+            String key = dke.getKey();
+            throw new DuplicateKeyException("Found duplicate row ID \"" + key + "\" (at unknown position)", key);
+        }
+        m_table = new BufferedContainerTable(m_buffer);
+        m_localRepository.put(m_table.getTableId(), m_table);
+        m_buffer = null;
+        m_spec = null;
+        m_duplicateChecker.clear();
+        m_duplicateChecker = null;
+        m_domainCreator = null;
+        m_size = -1;
+    }
+
+    /**
+     * Get the number of rows that have been added so far. (How often has <code>addRowToTable</code> been called.)
+     *
+     * @return The number of rows in the container.
+     * @throws IllegalStateException If container is not open.
+     * @since 3.0
+     */
+    @Override
+    public long size() {
+        if (isClosed()) {
+            return m_table.getBuffer().size();
+        }
+        return m_size;
+    }
+
+    /**
+     * Obtain a reference to the table that has been built up. This method throws an exception unless the container is
+     * closed and therefore has a table available. This method is susceptible to resource leaks. Consider invoking
+     * {@link DataContainer#getCloseableTable() getCloseableTable} instead. Alternatively, make sure to cast the table
+     * to a {@link ContainerTable} and {@link ContainerTable#clear() clear} it to dispose underlying resources once it
+     * is no longer needed.
+     *
+     * @return reference to the table that has been built up
+     * @throws IllegalStateException if the container has not been closed yet or has already been disposed
+     */
+    @Override
+    public ContainerTable getTable() {
+        return m_table;
+    }
+
+    /**
+     * Get the currently set DataTableSpec.
+     *
+     * @return The current spec.
+     */
+    @Override
+    public DataTableSpec getTableSpec() {
+        if (isClosed()) {
+            return m_table.getDataTableSpec();
+        } else if (isOpen()) {
+            return m_spec;
+        }
+        throw new IllegalStateException("Cannot get spec: container not open.");
+    }
+
+    @Override
+    public void addRowToTable(final DataRow row) {
+        if (!isOpen()) {
+            throw new IllegalStateException("Cannot add row: container has not been initialized (opened).");
+        }
+        if (row == null) {
+            throw new NullPointerException("Can't add null rows to container");
+        }
+        initBufferIfRequired();
+        if (m_forceSequentialRowHandling) {
+            addRowToTableSynchronously(row);
+        } else {
+            addRowToTableAsynchronously(row);
+        }
+        m_size += 1;
+    }
+
+    @Override
+    public void clear() {
+        m_table.clear();
+    }
+
+    /**
      * Initializes the buffer if required.
      */
     private void initBufferIfRequired() {
         if (m_buffer == null) {
             final int bufID = createInternalBufferID();
-            final IWriteFileStoreHandler fileStoreHandler = m_fileStoreHandler;
-            m_buffer = m_bufferCreator.createBuffer(m_spec, m_maxRowsInMemory, bufID, m_dataRepository, m_localMap,
-                fileStoreHandler);
+            m_buffer = m_bufferCreator.createBuffer(m_spec, m_maxRowsInMemory, bufID, m_repository, m_localRepository,
+                m_fileStoreHandler);
             if (m_buffer == null) {
                 throw new NullPointerException("Implementation error, must not return a null buffer.");
             }
@@ -438,6 +619,67 @@ final class BufferedContainer implements WritableContainer {
     }
 
     /**
+     * Submits the current batch to the {@link #ASYNC_EXECUTORS} service.
+     *
+     * @throws InterruptedException if an interrupted occured
+     */
+    private void submit() throws InterruptedException {
+        // wait until we are allowed to submit a new runnable
+        m_numPendingBatches.acquire();
+        m_numActiveContRunnables.acquire();
+        // poll can only return null if we never had #nThreads ContainerRunnables at the same
+        // time queued for execution or none of the already submitted Runnables has already finished
+        // it's computation
+        DataTableDomainCreator domainCreator = m_domainUpdaterPool.poll();
+        if (domainCreator == null) {
+            domainCreator = new DataTableDomainCreator(m_domainCreator);
+            domainCreator.setMaxPossibleValues(m_domainCreator.getMaxPossibleValues());
+        }
+        ASYNC_EXECUTORS.execute(new ContainerRunnable(domainCreator, m_curBatch, m_curBatchIdx++));
+        // reset batch
+        m_curBatch = new ArrayList<>(m_batchSize);
+    }
+
+    /** @return size of buffer temp file in bytes, -1 if not set. Only for debugging/test purposes. */
+    long getBufferFileSize() {
+        Buffer b = m_table != null ? m_table.getBuffer() : m_buffer;
+        if (b != null) {
+            return b.getBufferFileSize();
+        }
+        return -1L;
+    }
+
+    /**
+     * Get an internal id for the buffer being used. This ID is used in conjunction with blob serialization to locate
+     * buffers. Blobs that belong to a Buffer (i.e. they have been created in a particular Buffer) will write this ID
+     * when serialized to a file. Subsequent Buffers that also need to serialize Blob cells (which, however, have
+     * already been written) can then reference to the respective Buffer object using this ID.
+     *
+     * <p>
+     * An ID of -1 denotes the fact, that the buffer is not intended to be used for sophisticated blob serialization.
+     * All blob cells that are added to it will be newly serialized as if they were created for the first time.
+     *
+     * <p>
+     * This implementation returns -1 ({@link #DataContainer.NOT_IN_WORKFLOW_BUFFER}.
+     *
+     * @return -1 or a unique buffer ID.
+     */
+    private int createInternalBufferID() {
+        return m_repository instanceof NotInWorkflowDataRepository ? DataContainer.NOT_IN_WORKFLOW_BUFFER
+            : m_repository.generateNewID();
+    }
+
+    /**
+     * Used in tests.
+     *
+     * @return underlying buffer (or null if not initialized after restore).
+     * @noreference This method is not intended to be referenced by clients.
+     */
+    final Buffer getBuffer() {
+        return m_buffer;
+    }
+
+    /**
      * Method being called when {@link #addRowToTable(DataRow)} is called. This method will add the given row key to the
      * internal row key hashing structure, which allows for duplicate checking.
      *
@@ -463,92 +705,15 @@ final class BufferedContainer implements WritableContainer {
     }
 
     /**
-     * Submits the current batch to the {@link #ASYNC_EXECUTORS} service.
+     * Returns <code>true</code> if the given argument table has been created by the DataContainer, <code>false</code>
+     * otherwise.
      *
-     * @throws InterruptedException if an interrupted occured
+     * @param table The table to check.
+     * @return If the given table was created by a DataContainer.
+     * @throws NullPointerException If the argument is <code>null</code>.
      */
-    private void submit() throws InterruptedException {
-        // wait until we are allowed to submit a new runnable
-        m_numPendingBatches.acquire();
-        m_numActiveContRunnables.acquire();
-        // poll can only return null if we never had #nThreads ContainerRunnables at the same
-        // time queued for execution or none of the already submitted Runnables has already finished
-        // it's computation
-        DataTableDomainCreator domainCreator = m_domainUpdaterPool.poll();
-        if (domainCreator == null) {
-            domainCreator = new DataTableDomainCreator(m_domainCreator);
-            domainCreator.setMaxPossibleValues(m_domainCreator.getMaxPossibleValues());
-        }
-        ASYNC_EXECUTORS.execute(new ContainerRunnable(domainCreator, m_curBatch, m_curBatchIdx++));
-        // reset batch
-        m_curBatch = new ArrayList<>(m_batchSize);
-    }
-
-    @Override
-    public void close() {
-        if (m_table != null) {
-            return;
-        }
-        if (m_buffer == null) {
-            m_buffer = m_bufferCreator.createBuffer(m_spec, m_maxRowsInMemory, createInternalBufferID(),
-                m_dataRepository, m_localMap, m_fileStoreHandler);
-        }
-        if (!m_forceSequentialRowHandling) {
-            try {
-                if (m_writeThrowable.get() == null && !m_curBatch.isEmpty()) {
-                    submit();
-                }
-                waitForRunnableTermination();
-            } catch (final InterruptedException ie) {
-                m_writeThrowable.compareAndSet(null, ie);
-            }
-            checkAsyncWriteThrowable();
-            for (final DataTableDomainCreator domainCreator : m_domainUpdaterPool) {
-                m_domainCreator.merge(domainCreator);
-            }
-        }
-        // create table spec _after_ all_ rows have been added (i.e. wait for
-        // asynchronous write thread to finish)
-        DataTableSpec finalSpec = m_domainCreator.createSpec();
-        m_buffer.close(finalSpec);
-        try {
-            m_duplicateChecker.checkForDuplicates();
-        } catch (IOException ioe) {
-            throw new DataContainerException("Failed to check for duplicate row IDs", ioe);
-        } catch (DuplicateKeyException dke) {
-            String key = dke.getKey();
-            throw new DuplicateKeyException("Found duplicate row ID \"" + key + "\" (at unknown position)", key);
-        }
-        m_table = new BufferedContainerTable(m_buffer);
-
-        // TODO We want to move this out of this class.
-        m_localMap.put(m_table.getTableId(), m_table);
-        m_buffer = null;
-        m_spec = null;
-        m_duplicateChecker.clear();
-        m_duplicateChecker = null;
-        m_domainCreator = null;
-        m_size = -1;
-    }
-
-    /**
-     * Get an internal id for the buffer being used. This ID is used in conjunction with blob serialization to locate
-     * buffers. Blobs that belong to a Buffer (i.e. they have been created in a particular Buffer) will write this ID
-     * when serialized to a file. Subsequent Buffers that also need to serialize Blob cells (which, however, have
-     * already been written) can then reference to the respective Buffer object using this ID.
-     *
-     * <p>
-     * An ID of -1 denotes the fact, that the buffer is not intended to be used for sophisticated blob serialization.
-     * All blob cells that are added to it will be newly serialized as if they were created for the first time.
-     *
-     * <p>
-     * This implementation returns -1 ({@link #NOT_IN_WORKFLOW_BUFFER}.
-     *
-     * @return -1 or a unique buffer ID.
-     */
-    private int createInternalBufferID() {
-        return m_dataRepository instanceof NotInWorkflowDataRepository ? DataContainer.NOT_IN_WORKFLOW_BUFFER
-            : m_dataRepository.generateNewID();
+    public static final boolean isContainerTable(final DataTable table) {
+        return table instanceof ContainerTable;
     }
 
     /**
@@ -673,54 +838,6 @@ final class BufferedContainer implements WritableContainer {
     }
 
     /**
-     * @return
-     */
-    @Override
-    public long size() {
-        if (m_table != null) {
-            return m_table.getBuffer().size();
-        } else {
-            return m_size;
-        }
-    }
-
-    /**
-     * @param row
-     */
-    @Override
-    public void addRowToTable(final DataRow row) {
-        if (m_table != null) {
-            throw new IllegalStateException("Cannot add row: container has not been initialized (opened).");
-        }
-        if (row == null) {
-            throw new NullPointerException("Can't add null rows to container");
-        }
-        initBufferIfRequired();
-        if (m_forceSequentialRowHandling) {
-            addRowToTableSynchronously(row);
-        } else {
-            addRowToTableAsynchronously(row);
-        }
-        m_size += 1;
-    }
-
-    /**
-     *
-     */
-    @Override
-    public void clear() {
-        m_table.clear();
-    }
-
-    /**
-     * @return
-     */
-    @Override
-    public ContainerTable getTable() {
-        return m_table;
-    }
-
-    /**
      * Helper class to create a Buffer instance given a binary file and the data table spec.
      */
     static class BufferCreator {
@@ -759,8 +876,7 @@ final class BufferedContainer implements WritableContainer {
          */
         Buffer createBuffer(final File binFile, final File blobDir, final File fileStoreDir, final DataTableSpec spec,
             final InputStream metaIn, final int bufID, final IDataRepository dataRepository) throws IOException {
-            return new Buffer(binFile, blobDir, fileStoreDir, spec, metaIn, bufID,
-                BufferRepositoryUtil.wrap(dataRepository), m_bufferSettings);
+            return new Buffer(binFile, blobDir, fileStoreDir, spec, metaIn, bufID, dataRepository, m_bufferSettings);
         }
 
         /**
@@ -778,7 +894,6 @@ final class BufferedContainer implements WritableContainer {
         Buffer createBuffer(final DataTableSpec spec, final int rowsInMemory, final int bufferID,
             final IDataRepository dataRepository, final Map<Integer, ContainerTable> localTableRep,
             final IWriteFileStoreHandler fileStoreHandler) {
-
             return new Buffer(spec, rowsInMemory, bufferID, dataRepository, localTableRep, fileStoreHandler,
                 m_bufferSettings);
         }
@@ -803,114 +918,6 @@ final class BufferedContainer implements WritableContainer {
         }
     }
 
-    /**
-     * Buffer implementation that does not write the row keys. Used to write data if only few columns have changed. This
-     * buffer writes the changed columns.
-     * <p>
-     * This class is used to save the data of the new columns in a {@link RearrangeColumnsTable}.
-     *
-     * @author Bernd Wiswedel, University of Konstanz
-     */
-    static class NoKeyBuffer extends Buffer {
-
-        private static final NodeLogger LOGGER = NodeLogger.getLogger(NoKeyBuffer.class);
-
-        /** Current version string. */
-        private static final String VERSION = "noRowKeyContainer_12";
-
-        /** The version number corresponding to VERSION. */
-        private static final int IVERSION = 12;
-
-        private static final HashMap<String, Integer> COMPATIBILITY_MAP;
-
-        static {
-            // see Buffer static block for details
-            COMPATIBILITY_MAP = new HashMap<String, Integer>();
-            COMPATIBILITY_MAP.put("noRowKeyContainer_1.0.0", 1);
-            COMPATIBILITY_MAP.put("noRowKeyContainer_1.1.0", 2);
-            COMPATIBILITY_MAP.put("noRowKeyContainer_1.2.0", 3);
-            COMPATIBILITY_MAP.put("noRowKeyContainer_4", 4);
-            COMPATIBILITY_MAP.put("noRowKeyContainer_5", 5);
-            COMPATIBILITY_MAP.put("noRowKeyContainer_6", 6);
-            COMPATIBILITY_MAP.put("noRowKeyContainer_7", 7);
-            COMPATIBILITY_MAP.put("noRowKeyContainer_8", 8);
-            COMPATIBILITY_MAP.put("noRowKeyContainer_9", 9);
-            COMPATIBILITY_MAP.put("noRowKeyContainer_10", 10);
-            COMPATIBILITY_MAP.put("noRowKeyContainer_11", 11);
-            COMPATIBILITY_MAP.put(VERSION, IVERSION);
-        }
-
-        /**
-         * Creates new buffer for writing.
-         *
-         * @param spec Passed on to super.
-         * @param maxRowsInMemory Passed on to super.
-         * @param bufferID Passed on to super.
-         * @param tblRep Passed on to super.
-         * @param dataRepository Passed to super class.
-         * @param localTblRep Passed on to super.
-         * @param fileStoreHandler passed on to super.
-         * @param forceSynchronousWrite passed on to super.
-         */
-        NoKeyBuffer(final DataTableSpec spec, final int maxRowsInMemory, final int bufferID,
-            final IDataRepository dataRepository, final Map<Integer, ContainerTable> localTblRep,
-            final IWriteFileStoreHandler fileStoreHandler) {
-            super(spec, maxRowsInMemory, bufferID, dataRepository, localTblRep, fileStoreHandler);
-        }
-
-        /**
-         * Creates new buffer for reading.
-         *
-         * @param binFile Passed on to super.
-         * @param blobDir Passed on to super.
-         * @param spec Passed on to super.
-         * @param metaIn Passed on to super.
-         * @param bufferID Passed on to super.
-         * @param dataRepository Passed to super class.
-         * @throws IOException Passed on from super.
-         */
-        NoKeyBuffer(final File binFile, final File blobDir, final DataTableSpec spec, final InputStream metaIn,
-            final int bufferID, final IDataRepository dataRepository) throws IOException {
-            super(binFile, blobDir, /*can't have fs dir in workflow*/null, spec, metaIn, bufferID,
-                BufferRepositoryUtil.wrap(dataRepository));
-        }
-
-        /** {@inheritDoc} */
-        @Override
-        public String getVersion() {
-            return VERSION;
-        }
-
-        /** {@inheritDoc} */
-        @Override
-        int validateVersion(final String version) {
-            Integer iVersion = COMPATIBILITY_MAP.get(version);
-            if (iVersion == null) {
-                LOGGER.warn("Unknown version string in persisted table file (\"" + version
-                    + "\") - was table created with a future version of KNIME? Using \"" + VERSION + "\" modus.");
-                iVersion = IVERSION;
-            }
-            if (iVersion < IVERSION) {
-                LOGGER.debug("Table has been written with a previous version of KNIME (\"" + version
-                    + "\", using compatibility mode.");
-            }
-            return iVersion;
-        }
-
-        /** {@inheritDoc} */
-        @Override
-        boolean shouldSkipRowKey() {
-            return true;
-        }
-
-        /** {@inheritDoc} */
-        @Override
-        Buffer createLocalCloneForWriting() {
-            return new NoKeyBuffer(getTableSpec(), 0, getBufferID(), getDataRepository(), Collections.emptyMap(),
-                castAndGetFileStoreHandler());
-        }
-
-    }
 
     /** Used in write/readFromZip: Name of the zip entry containing the spec. */
     static final String ZIP_ENTRY_SPEC = "spec.xml";
@@ -919,74 +926,8 @@ final class BufferedContainer implements WritableContainer {
     static final String CFG_TABLESPEC = "table.spec";
 
     /**
-     * @param table
-     * @param out
-     * @param exec
-     * @throws CanceledExecutionException
-     * @throws IOException
-     */
-
-    // TODO why can this guy consume arbitrary tables?
-    public static void writeToStream(final DataTable table, final OutputStream out, final ExecutionMonitor exec)
-        throws CanceledExecutionException, IOException {
-        Buffer buf;
-        ExecutionMonitor e = exec;
-        boolean canUseBuffer = table instanceof BufferedContainerTable;
-        if (canUseBuffer) {
-            Buffer b = ((BufferedContainerTable)table).getBuffer();
-            if (b.containsBlobCells() && b.getBufferID() != -1) {
-                canUseBuffer = false;
-            }
-        }
-        if (canUseBuffer) {
-            buf = ((BufferedContainerTable)table).getBuffer();
-        } else {
-            exec.setMessage("Archiving table");
-            e = exec.createSubProgress(0.8);
-            buf = new Buffer(table.getDataTableSpec(), 0, -1, NotInWorkflowDataRepository.newInstance(),
-                new HashMap<>(), NotInWorkflowWriteFileStoreHandler.create());
-            int rowCount = 0;
-            for (DataRow row : table) {
-                rowCount++;
-                e.setMessage("Writing row #" + rowCount + " (\"" + row.getKey() + "\")");
-                e.checkCanceled();
-                buf.addRow(row, false, false);
-            }
-            buf.close(table.getDataTableSpec());
-            exec.setMessage("Closing zip file");
-            e = exec.createSubProgress(0.2);
-        }
-        final boolean originalOutputIsBuffered =
-            ((out instanceof BufferedOutputStream) || (out instanceof ByteArrayOutputStream));
-        OutputStream os = originalOutputIsBuffered ? out : new BufferedOutputStream(out);
-
-        ZipOutputStream zipOut = new ZipOutputStream(os);
-        // (part of) bug fix #1141: spec must be put as first entry in order
-        // for the table reader to peek it
-        zipOut.putNextEntry(new ZipEntry(ZIP_ENTRY_SPEC));
-        NodeSettings settings = new NodeSettings("Table Spec");
-        NodeSettingsWO specSettings = settings.addNodeSettings(CFG_TABLESPEC);
-        buf.getTableSpec().save(specSettings);
-        settings.saveToXML(new NonClosableOutputStream.Zip(zipOut));
-        buf.addToZipFile(zipOut, e);
-        zipOut.finish();
-        if (!originalOutputIsBuffered) {
-            os.flush();
-        }
-    }
-
-    /**
-     * Used in tests.
-     *
-     * @return underlying buffer (or null if not initialized after restore).
-     * @noreference This method is not intended to be referenced by clients.
-     */
-    final Buffer getBuffer() {
-        return m_buffer;
-    }
-
-    /**
      * @param in
+     * @return
      * @throws IOException
      */
     public static ContainerTable readFromStream(final InputStream in) throws IOException {
@@ -1026,21 +967,79 @@ final class BufferedContainer implements WritableContainer {
     }
 
     /**
+     * @param zipFile
+     * @param spec
+     * @param bufferID
+     * @param dataRepository
+     * @return
+     */
+    public static ContainerTable readFromZipDelayed(final ReferencedFile zipFile, final DataTableSpec spec,
+        final int bufferID, final WorkflowDataRepository dataRepository) {
+        CopyOnAccessTask t = new CopyOnAccessTask(zipFile, spec, bufferID, dataRepository, true);
+        return readFromZipDelayed(t, spec);
+    }
+
+    /**
      * @param c
      * @param spec
      * @return
      */
-    static ContainerTable readFromZipDelayed(final CopyOnAccessTask c, final DataTableSpec spec) {
+    public static ContainerTable readFromZipDelayed(final CopyOnAccessTask c, final DataTableSpec spec) {
         return new BufferedContainerTable(c, spec);
     }
 
-    //    /** @return size of buffer temp file in bytes, -1 if not set. Only for debugging/test purposes. */
-    //    long getBufferFileSize() {
-    //        Buffer b = m_table != null ? m_table.getBuffer() : m_buffer;
-    //        if (b != null) {
-    //            return b.getBufferFileSize();
-    //        }
-    //        return -1L;
-    //    }
+    /**
+     * @param table
+     * @param out
+     * @param exec
+     * @return
+     * @throws IOException
+     * @throws CanceledExecutionException
+     */
+    public static void writeToStream(final DataTable table, final OutputStream out, final ExecutionMonitor exec) throws IOException, CanceledExecutionException {
+        Buffer buf;
+        ExecutionMonitor e = exec;
+        boolean canUseBuffer = table instanceof ContainerTable;
+        if (canUseBuffer) {
+            Buffer b = ((BufferedContainerTable)table).getBuffer();
+            if (b.containsBlobCells() && b.getBufferID() != -1) {
+                canUseBuffer = false;
+            }
+        }
+        if (canUseBuffer) {
+            buf = ((BufferedContainerTable)table).getBuffer();
+        } else {
+            exec.setMessage("Archiving table");
+            e = exec.createSubProgress(0.8);
+            buf = new Buffer(table.getDataTableSpec(), 0, -1, NotInWorkflowDataRepository.newInstance(),
+                new HashMap<Integer, ContainerTable>(), NotInWorkflowWriteFileStoreHandler.create());
+            int rowCount = 0;
+            for (DataRow row : table) {
+                rowCount++;
+                e.setMessage("Writing row #" + rowCount + " (\"" + row.getKey() + "\")");
+                e.checkCanceled();
+                buf.addRow(row, false, false);
+            }
+            buf.close(table.getDataTableSpec());
+            exec.setMessage("Closing zip file");
+            e = exec.createSubProgress(0.2);
+        }
+        final boolean originalOutputIsBuffered =
+            ((out instanceof BufferedOutputStream) || (out instanceof ByteArrayOutputStream));
+        OutputStream os = originalOutputIsBuffered ? out : new BufferedOutputStream(out);
 
+        ZipOutputStream zipOut = new ZipOutputStream(os);
+        // (part of) bug fix #1141: spec must be put as first entry in order
+        // for the table reader to peek it
+        zipOut.putNextEntry(new ZipEntry(ZIP_ENTRY_SPEC));
+        NodeSettings settings = new NodeSettings("Table Spec");
+        NodeSettingsWO specSettings = settings.addNodeSettings(CFG_TABLESPEC);
+        buf.getTableSpec().save(specSettings);
+        settings.saveToXML(new NonClosableOutputStream.Zip(zipOut));
+        buf.addToZipFile(zipOut, e);
+        zipOut.finish();
+        if (!originalOutputIsBuffered) {
+            os.flush();
+        }
+    }
 }

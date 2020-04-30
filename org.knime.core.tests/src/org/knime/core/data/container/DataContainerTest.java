@@ -114,7 +114,7 @@ public class DataContainerTest extends TestCase {
     public static final void testOpen() {
         DataContainer c = new DataContainer(EMPTY_SPEC);
         c.addRowToTable(new DefaultRow("no one is going to read me", new DataCell[]{}));
-        assertTrue(c.isOpen());
+        assertTrue(!c.isClosed());
     }
 
     /**
@@ -193,7 +193,7 @@ public class DataContainerTest extends TestCase {
             cont.addRowToTable(it.next());
         }
         @SuppressWarnings("resource")
-        Buffer buffer = cont.getBuffer();
+        Buffer buffer = ((BufferedRowContainer)cont.getRowContainer()).getBuffer();
         buffer.flushBuffer();
         for (; i < nrRows; i++) {
             cont.addRowToTable(it.next());
