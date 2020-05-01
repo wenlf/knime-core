@@ -135,6 +135,7 @@ public class DataContainer implements RowAppender {
     private DataTableSpec m_spec;
 
     private final Map<Integer, ContainerTable> m_localRepository;
+
     /**
      * Consider using {@link ExecutionContext#createDataContainer(DataTableSpec)} instead of invoking this constructor
      * directly.
@@ -252,22 +253,27 @@ public class DataContainer implements RowAppender {
         // currently only enabled by BufferedDataContainers...
         if (enableFastTables && FastTables.isCompatible(spec)) {
             // TODO wrapper of FastTableConfig and DataContainerSettings as soon as we moved rowKeys, force etc into DataContainerSettings.
-            m_rowContainer = FastTables.create(spec, new FastTableConfig() {
-                @Override
-                public boolean isRowKeyEnabled() {
-                    return rowKeys;
-                }
+            try {
+                m_rowContainer = FastTables.create(repository.generateNewID(), spec, new FastTableConfig() {
+                    @Override
+                    public boolean isRowKeyEnabled() {
+                        return rowKeys;
+                    }
 
-                @Override
-                public int maxContainerThreads() {
-                    return settings.getMaxContainerThreads();
-                }
+                    @Override
+                    public int maxContainerThreads() {
+                        return settings.getMaxContainerThreads();
+                    }
 
-                @Override
-                public int maxNumDomainValues() {
-                    return settings.getMaxDomainValues();
-                }
-            });
+                    @Override
+                    public int maxNumDomainValues() {
+                        return settings.getMaxDomainValues();
+                    }
+                }, createTempFile(".knarrow"), rowKeys);
+            } catch (IOException e) {
+                // TODO
+                throw new RuntimeException(e);
+            }
         } else {
             // use default implementation of RowContainer
             m_rowContainer = new BufferedRowContainer(spec, settings, repository, localRepository,
@@ -520,7 +526,7 @@ public class DataContainer implements RowAppender {
     public static void writeToStream(final DataTable table, final OutputStream out, final ExecutionMonitor exec)
         throws IOException, CanceledExecutionException {
         // TODO switch according to table implementation.
-       BufferedRowContainer.writeToStream(table, out, exec);
+        BufferedRowContainer.writeToStream(table, out, exec);
     }
 
     /**

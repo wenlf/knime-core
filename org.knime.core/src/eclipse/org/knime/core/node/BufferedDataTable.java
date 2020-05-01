@@ -813,7 +813,7 @@ public final class BufferedDataTable implements DataTable, PortObject {
                 t = new BufferedDataTable(cont, id);
                 break;
             case TABLE_TYPE_CONTAINER_FAST: // added in 4.2
-                final FastTable fastTable = FastTables.readFromFileDelayed(fileRef, spec, id, dataRepository);
+                final ContainerTable fastTable = FastTables.readFromFileDelayed(fileRef, spec, id, dataRepository, settings);
                 // TODO I introduced the constructor without id (getting ID from fast-table). can ID of delegate and BufferedTable differ?
                 t = new BufferedDataTable(fastTable);
                 break;

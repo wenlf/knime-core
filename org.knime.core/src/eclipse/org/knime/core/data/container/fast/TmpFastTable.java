@@ -48,48 +48,77 @@
  */
 package org.knime.core.data.container.fast;
 
-import org.knime.core.data.container.ContainerTable;
+import java.io.File;
+import java.io.IOException;
+
+import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.table.store.TableReadStore;
-import org.knime.core.node.BufferedDataTable;
-import org.knime.core.node.BufferedDataTable.KnowsRowCountTable;
+import org.knime.core.data.table.store.TableStore;
+import org.knime.core.node.CanceledExecutionException;
+import org.knime.core.node.ExecutionMonitor;
+import org.knime.core.node.NodeSettingsWO;
 
 /**
- * Alternative to Buffer based implementations of {@link ContainerTable}s.
  *
- * TODO naming
- *
- * @author Christian Dietz, KNIME GmbH
- * @since 4.2
- *
- * @noreference This interface is not intended to be referenced by clients.
+ * @author dietzc
  */
-public interface FastTable extends ContainerTable {
+public class TmpFastTable extends AbstractFastTable {
 
-   final BufferedDataTable[] EMPTY_ARRAY = new BufferedDataTable[0];
-
-    /**
-     * @return
-     */
-    boolean isRowKeys();
+    private TableStore m_store;
 
     /**
-     * {@inheritDoc}
+     * @param id
+     * @param spec
+     * @param store
+     * @param isRowKey
      */
-    @Override
-    default BufferedDataTable[] getReferenceTables() {
-        return EMPTY_ARRAY;
+    public TmpFastTable(final int id, final DataTableSpec spec, final TableStore store, final boolean isRowKey) {
+        super(id, spec, isRowKey);
+        m_store = store;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    default int getRowCount() {
-        return KnowsRowCountTable.checkRowCount(size());
+    public TableReadStore getStore() {
+        return m_store;
     }
 
     /**
-     * @return
+     * {@inheritDoc}
      */
-    TableReadStore getStore();
+    @Override
+    public void ensureOpen() {
+        // Open anyways...
+        // Ensure open only interesting for LazyFastTables...
+        throw new IllegalStateException("Why called?");
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void clear() {
+        try {
+            // TODO make sure we do the right thing with 'close'.
+            // In this case it really means: destroy all (not only kill memory)
+            m_store.close();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+        m_store = null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void saveToFile(final File f, final NodeSettingsWO settings, final ExecutionMonitor exec)
+        throws IOException, CanceledExecutionException {
+        if (!isOpen()) {
+            throw new IOException("Can't save a cleared FastTable.");
+        }
+        m_store.copyDataTo(f);
+    }
 }

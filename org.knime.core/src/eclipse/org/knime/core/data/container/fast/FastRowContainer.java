@@ -59,8 +59,8 @@ import org.knime.core.data.container.RowContainer;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.data.row.RowWriteCursor;
-import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.store.TableStore;
+import org.knime.core.data.table.store.TableStoreUtils;
 import org.knime.core.data.type.DoubleType;
 import org.knime.core.data.type.StringType;
 import org.knime.core.data.value.DoubleWriteValue;
@@ -83,24 +83,38 @@ public class FastRowContainer implements RowContainer {
 
     private DataTableSpec m_spec;
 
-    private FastContainerTable m_table;
+    private TmpFastTable m_table;
+
+    private final int m_tableId;
+
+    private final boolean m_isRowKey;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public FastRowContainer(final DataTableSpec spec, final TableStore store) {
-        m_cursor = TableUtils.createWriteTable(store).getCursor();
+    public FastRowContainer(final int tableId, final DataTableSpec spec, final TableStore store,
+        final boolean isRowKey) {
+        m_cursor = TableStoreUtils.createWriteTable(store).getCursor();
         m_store = store;
-        m_consumers = new DataCellConsumer[spec.getNumColumns()];
         m_spec = spec;
+        m_tableId = tableId;
+        m_isRowKey = isRowKey;
 
+        int offset = 0;
+        if (m_isRowKey) {
+            m_rowKeyWriter = m_cursor.get(0);
+            offset = 1;
+        } else {
+            m_rowKeyWriter = null;
+        }
+
+        m_consumers = new DataCellConsumer[spec.getNumColumns()];
         final ColumnType<?, ?>[] columnTypes = store.getColumnTypes();
-        for (int i = 0; i < m_consumers.length; i++) {
+        for (int i = 0; i < m_consumers.length + 1; i++) {
             if (columnTypes[i] instanceof DoubleType) {
-                m_consumers[i] = (DataCellConsumer)new DoubleCellConsumer(m_cursor.get(i));
+                m_consumers[i] = (DataCellConsumer)new DoubleCellConsumer(m_cursor.get(i + offset));
             } else if (columnTypes[i] instanceof StringType) {
-                m_consumers[i] = (DataCellConsumer)new StringCellConsumer(m_cursor.get(i));
+                m_consumers[i] = (DataCellConsumer)new StringCellConsumer(m_cursor.get(i + offset));
             }
         }
-        m_rowKeyWriter = m_cursor.get(0);
     }
 
     /**
@@ -117,7 +131,7 @@ public class FastRowContainer implements RowContainer {
                 // TODO OK?
                 throw new IllegalStateException(ex);
             }
-            m_table = new FastContainerTable(m_spec, m_store);
+            m_table = new TmpFastTable(m_tableId, m_spec, m_store, m_isRowKey);
         }
     }
 

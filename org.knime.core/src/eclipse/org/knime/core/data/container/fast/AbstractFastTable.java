@@ -48,8 +48,6 @@
  */
 package org.knime.core.data.container.fast;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -62,7 +60,6 @@ import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.DataType;
 import org.knime.core.data.container.CloseableRowIterator;
-import org.knime.core.data.container.ContainerTable;
 import org.knime.core.data.container.filter.TableFilter;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.def.DoubleCell;
@@ -70,143 +67,31 @@ import org.knime.core.data.def.StringCell;
 import org.knime.core.data.row.RowBatchReaderConfig;
 import org.knime.core.data.row.RowReadCursor;
 import org.knime.core.data.table.ReadTable;
-import org.knime.core.data.table.TableUtils;
-import org.knime.core.data.table.store.TableStore;
+import org.knime.core.data.table.store.TableStoreUtils;
 import org.knime.core.data.value.DoubleReadValue;
 import org.knime.core.data.value.StringReadValue;
-import org.knime.core.node.BufferedDataTable;
-import org.knime.core.node.BufferedDataTable.KnowsRowCountTable;
-import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
-import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.workflow.WorkflowDataRepository;
 
 /**
  *
  * @author dietzc
  */
-public class FastContainerTable implements ContainerTable {
-
-    private final static BufferedDataTable[] EMPTY_ARRAY = new BufferedDataTable[0];
-
-    private TableStore m_store;
+abstract class AbstractFastTable implements FastTable {
 
     private final DataTableSpec m_spec;
 
     private final int m_id;
 
+    private boolean m_isRowKey;
+
     /**
-     * @param spec
-     * @param store
+     * TODO move isRowKeys to a config?
      */
-    public FastContainerTable(final int id, final DataTableSpec spec, final TableStore store) {
-        m_store = store;
+    AbstractFastTable(final int id, final DataTableSpec spec, final boolean isRowKey) {
         m_spec = spec;
         m_id = id;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public int getRowCount() {
-        return KnowsRowCountTable.checkRowCount(size());
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public long size() {
-        return m_store.size();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void saveToFile(final File f, final NodeSettingsWO settings, final ExecutionMonitor exec)
-        throws IOException, CanceledExecutionException {
-        // TODO
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void clear() {
-        // TODO this means we kill a table. store.close()? store.clear()?
-        m_store = null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void ensureOpen() {
-        // TODO copy file over to tmp
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public CloseableRowIterator iterator() {
-        // TODO we don't want to recreate a table per iterator...
-        final ReadTable table = TableUtils.createReadTable(m_store);
-        return new FastTableRowReader(table.newCursor(), m_spec);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public CloseableRowIterator iteratorWithFilter(final TableFilter filter, final ExecutionMonitor exec) {
-        // TODO implement row index selection as RowBatchReaderConfig (start at...)
-        final ReadTable table = TableUtils.createReadTable(m_store, new RowBatchReaderConfig() {
-            @Override
-            public int[] getColumnIndices() {
-                Optional<Set<Integer>> materializeColumnIndices = filter.getMaterializeColumnIndices();
-                final int[] selected;
-                if (materializeColumnIndices.isPresent()) {
-                    final List<Integer> indices = new ArrayList<>(materializeColumnIndices.get());
-                    Collections.sort(indices);
-                    selected = new int[indices.size()];
-                    for (int i = 0; i < selected.length; i++) {
-                        selected[i] = indices.get(i);
-                    }
-                } else {
-                    selected = null;
-                }
-                return selected;
-            }
-        });
-        return new FastTableRowReader(table.newCursor(), m_spec);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public BufferedDataTable[] getReferenceTables() {
-        return EMPTY_ARRAY;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void putIntoTableRepository(final WorkflowDataRepository dataRepository) {
-        dataRepository.addTable(getTableId(), this);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean removeFromTableRepository(final WorkflowDataRepository dataRepository) {
-        dataRepository.removeTable(m_id);
-        return true;
+        m_isRowKey = isRowKey;
     }
 
     /**
@@ -230,14 +115,67 @@ public class FastContainerTable implements ContainerTable {
      */
     @Override
     public boolean isOpen() {
-        return m_store != null;
+        return getStore() != null;
     }
 
-    class FastTableRowReader extends CloseableRowIterator {
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public long size() {
+        return getStore().size();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CloseableRowIterator iterator() {
+        // TODO we don't want to recreate a table per iterator...
+        final ReadTable table = TableStoreUtils.createReadTable(getStore());
+        return new FastTableRowReader(table.newCursor(), m_spec, m_isRowKey);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CloseableRowIterator iteratorWithFilter(final TableFilter filter, final ExecutionMonitor exec) {
+        // TODO implement row index selection as RowBatchReaderConfig (start at...)
+        final ReadTable table = TableStoreUtils.createReadTable(getStore(), new RowBatchReaderConfig() {
+            @Override
+            public int[] getColumnIndices() {
+                Optional<Set<Integer>> materializeColumnIndices = filter.getMaterializeColumnIndices();
+                final int[] selected;
+                if (materializeColumnIndices.isPresent()) {
+                    final List<Integer> indices = new ArrayList<>(materializeColumnIndices.get());
+                    Collections.sort(indices);
+                    selected = new int[indices.size()];
+                    for (int i = 0; i < selected.length; i++) {
+                        selected[i] = indices.get(i);
+                    }
+                } else {
+                    selected = null;
+                }
+                return selected;
+            }
+        });
+        return new FastTableRowReader(table.newCursor(), m_spec, m_isRowKey);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isRowKeys() {
+        return m_isRowKey;
+    }
+
+    static class FastTableRowReader extends CloseableRowIterator {
 
         private final RowReadCursor m_cursor;
 
-        private StringReadValue m_rowKeySupplier;
+        private final StringReadValue m_rowKeySupplier;
 
         private final int m_numColumns;
 
@@ -247,20 +185,26 @@ public class FastContainerTable implements ContainerTable {
 
         private final DataCell MISSING = DataType.getMissingCell();
 
-        public FastTableRowReader(final RowReadCursor cursor, final DataTableSpec spec) {
+        public FastTableRowReader(final RowReadCursor cursor, final DataTableSpec spec, final boolean isRowKey) {
             m_cursor = cursor;
             m_numColumns = spec.getNumColumns();
             m_suppliers = new DataValueSupplier[spec.getNumColumns()];
-            m_rowKeySupplier = cursor.get(0);
             m_cells = new DataCell[m_numColumns];
 
+            int offset = 0;
+            if (isRowKey) {
+                m_rowKeySupplier = cursor.get(0);
+                offset = 1;
+            } else {
+                m_rowKeySupplier = null;
+            }
             // TODO do mapping once. we can use the same mapping for each reader.
             // TODO which mapping to use? output spec from knime or columntypes spec of store?
             for (int i = 0; i < m_suppliers.length; i++) {
                 if (spec.getColumnSpec(i).getType() == DoubleCell.TYPE) {
-                    m_suppliers[i] = new DoubleCellConsumer(cursor.get(i + 1));
+                    m_suppliers[i] = new DoubleCellConsumer(cursor.get(i + offset));
                 } else if (spec.getColumnSpec(i).getType() == StringCell.TYPE) {
-                    m_suppliers[i] = new StringCellConsumer(cursor.get(i + 1));
+                    m_suppliers[i] = new StringCellConsumer(cursor.get(i + offset));
                 }
             }
         }
@@ -305,53 +249,72 @@ public class FastContainerTable implements ContainerTable {
                 throw new RuntimeException(e);
             }
         }
+
+        /*
+         * HELPERs. TODO EXTENSIBLE!!! Versioned?
+         */
+        interface DataValueSupplier<D extends DataCell> extends Supplier<D> {
+            boolean isMissing();
+        }
+
+        class DoubleCellConsumer implements DataValueSupplier<DoubleCell> {
+            private final DoubleReadValue m_value;
+
+            public DoubleCellConsumer(final DoubleReadValue value) {
+                m_value = value;
+            }
+
+            @Override
+            public DoubleCell get() {
+                // TODO how cool would it be to just return a proxy DoubleValue:-(
+                return new DoubleCell(m_value.getDouble());
+            }
+
+            @Override
+            public boolean isMissing() {
+                return m_value.isMissing();
+            }
+
+        }
+
+        class StringCellConsumer implements DataValueSupplier<StringCell> {
+            private final StringReadValue m_value;
+
+            public StringCellConsumer(final StringReadValue value) {
+                m_value = value;
+            }
+
+            @Override
+            public StringCell get() {
+                // TODO how cool would it be to just return a proxy DoubleValue:-(
+                return new StringCell(m_value.getStringValue());
+            }
+
+            @Override
+            public boolean isMissing() {
+                return m_value.isMissing();
+            }
+
+        }
     }
 
-    /*
-     * HELPERs. TODO EXTENSIBLE!!!
+    /**
+     * {@inheritDoc}
      */
-    interface DataValueSupplier<D extends DataCell> extends Supplier<D> {
-        boolean isMissing();
+    @Override
+    public void putIntoTableRepository(final WorkflowDataRepository dataRepository) {
+        // TODO only relevant in case of newly created tables?
+        dataRepository.addTable(getTableId(), this);
     }
 
-    class DoubleCellConsumer implements DataValueSupplier<DoubleCell> {
-        private final DoubleReadValue m_value;
-
-        public DoubleCellConsumer(final DoubleReadValue value) {
-            m_value = value;
-        }
-
-        @Override
-        public DoubleCell get() {
-            // TODO how cool would it be to just return a proxy DoubleValue:-(
-            return new DoubleCell(m_value.getDouble());
-        }
-
-        @Override
-        public boolean isMissing() {
-            return m_value.isMissing();
-        }
-
-    }
-
-    class StringCellConsumer implements DataValueSupplier<StringCell> {
-        private final StringReadValue m_value;
-
-        public StringCellConsumer(final StringReadValue value) {
-            m_value = value;
-        }
-
-        @Override
-        public StringCell get() {
-            // TODO how cool would it be to just return a proxy DoubleValue:-(
-            return new StringCell(m_value.getStringValue());
-        }
-
-        @Override
-        public boolean isMissing() {
-            return m_value.isMissing();
-        }
-
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean removeFromTableRepository(final WorkflowDataRepository dataRepository) {
+        // TODO only relevant in case of newly created tables?
+        dataRepository.removeTable(getTableId());
+        return true;
     }
 
 }

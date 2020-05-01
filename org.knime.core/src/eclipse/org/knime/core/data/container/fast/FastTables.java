@@ -49,32 +49,48 @@
 package org.knime.core.data.container.fast;
 
 import java.io.File;
+import java.io.IOException;
 
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.DataType;
 import org.knime.core.data.arrow.ArrowTableStoreFactory;
 import org.knime.core.data.column.ColumnType;
+import org.knime.core.data.container.RowContainer;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.StringCell;
+import org.knime.core.data.table.store.TableStore;
+import org.knime.core.data.table.store.TableStoreConfig;
 import org.knime.core.data.table.store.TableStoreFactory;
 import org.knime.core.data.type.DoubleType;
 import org.knime.core.data.type.StringType;
 import org.knime.core.internal.ReferencedFile;
+import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
+import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.workflow.WorkflowDataRepository;
 
 /**
- * Manages fast tables serialization / deserialization with versioning.
+ * Manages fast tables creation, serialization/deserialization and store versioning.
  *
  * @author Christian Dietz, KNIME GmbH
  * @since 4.2
  */
 public class FastTables {
 
+    /**
+     *
+     */
+    private static final String FAST_TABLE_CONTAINER_ROWKEY = "FAST_TABLE_CONTAINER_ROWKEY";
+
+    private static final String FAST_TABLE_CONTAINER_SIZE = "FAST_TABLE_CONTAINER_SIZE";
+
+    private static final String FAST_TABLE_CONTAINER_TYPE = "FAST_TABLE_CONTAINER_TYPE";
+
     // TODO extension point?
-    // TODO sorted by 'priority'
+    // TODO sorted by 'priority'?
     private final static TableStoreFactory[] FACTORIES = new TableStoreFactory[]{new ArrowTableStoreFactory()};
 
     /**
@@ -82,12 +98,25 @@ public class FastTables {
      * @param spec
      * @param id
      * @param dataRepository
+     * @param settings
      * @return
+     * @throws InvalidSettingsException
+     * @throws ClassNotFoundException
      */
+    @SuppressWarnings("resource")
     public static LazyFastTable readFromFileDelayed(final ReferencedFile fileRef, final DataTableSpec spec,
-        final int id, final WorkflowDataRepository dataRepository) {
-        // TODO load format factory if not already loaded (singleton.../ registry?)
-        return null;
+        final int id, final WorkflowDataRepository dataRepository, final NodeSettingsRO settings)
+        throws InvalidSettingsException {
+        try {
+            final long size = settings.getLong(FAST_TABLE_CONTAINER_SIZE);
+            final TableStoreFactory factory =
+                (TableStoreFactory)Class.forName(settings.getString(FAST_TABLE_CONTAINER_TYPE)).newInstance();
+            return new LazyFastTable(dataRepository, fileRef, id, spec, factory, size,
+                settings.getBoolean(FAST_TABLE_CONTAINER_ROWKEY));
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException ex) {
+            // TODO we stored the wrong factory
+            throw new RuntimeException(ex);
+        }
     }
 
     /**
@@ -95,22 +124,50 @@ public class FastTables {
      * @param outFile
      * @param s
      * @param exec
+     * @throws CanceledExecutionException
+     * @throws IOException
      */
+    @SuppressWarnings("resource")
     public static void saveToFile(final FastTable delegate, final File outFile, final NodeSettings s,
-        final ExecutionMonitor exec) {
-        // TODO store class of format factory for versioning
-
+        final ExecutionMonitor exec) throws IOException, CanceledExecutionException {
+        // TODO AVOID cast.
+        s.addString(FAST_TABLE_CONTAINER_TYPE, ((TableStore)delegate.getStore()).getFactory().getCanonicalName());
+        s.addLong(FAST_TABLE_CONTAINER_SIZE, delegate.size());
+        s.addBoolean(FAST_TABLE_CONTAINER_ROWKEY, delegate.isRowKeys());
+        delegate.saveToFile(outFile, s, exec);
     }
 
     /**
-     * @param spec
-     * @param config
-     * @return
+     * Create a new {@link RowContainer} based on fast tables.
+     *
+     * @param tableId the table id. must be unique for a data repository.
+     * @param spec spec to be mapped. Make sure to call {@link FastTables#isCompatible(DataTableSpec)} to ensure
+     *            compatibility.
+     * @param config configuration of the container
+     * @param dest destination file used to serialize/deserialize data.
+     * @return a {@link RowContainer}
      */
-    public static FastRowContainer create(final DataTableSpec spec, final FastTableConfig config) {
-        return null;
+    @SuppressWarnings("resource")
+    public static FastRowContainer create(final int tableId, final DataTableSpec spec, final FastTableConfig config,
+        final File dest, final boolean isRowKey) {
+        final TableStore store =
+            FACTORIES[0].create(getFastTableSpec(spec, config.isRowKeyEnabled()), dest, new TableStoreConfig() {
+
+                @Override
+                public int getInitialChunkSize() {
+                    // TODO make configurable
+                    return 64000;
+                }
+            });
+        return new FastRowContainer(tableId, spec, store, isRowKey);
     }
 
+    /**
+     * Check if fast tables can be used with the {@link DataType}s of the {@link DataColumnSpec}s.
+     *
+     * @param spec to check compatibility
+     * @return <code>true</code> if fast table is compatible to spec.
+     */
     public static boolean isCompatible(final DataTableSpec spec) {
         // TODO more extensible!
         for (int i = 0; i < spec.getNumColumns(); i++) {
@@ -122,7 +179,7 @@ public class FastTables {
         return true;
     }
 
-    public static TableStoreFactory getFactoryByClass(final Class<?> class1) {
+    private static TableStoreFactory getFactoryByClass(final Class<?> class1) {
         for (TableStoreFactory factory : FACTORIES) {
             if (factory.getClass().isAssignableFrom(class1)) {
                 return factory;
@@ -131,7 +188,7 @@ public class FastTables {
         throw new IllegalArgumentException("No factory of type " + class1.getSimpleName());
     }
 
-    public static String getIdOfFactory(final TableStoreFactory factory) {
+    private static String getIdOfFactory(final TableStoreFactory factory) {
         final String canonical = factory.getClass().getCanonicalName();
         if (canonical == null) {
             // TODO better error messages
@@ -141,7 +198,7 @@ public class FastTables {
         return canonical;
     }
 
-    public static TableStoreFactory getFactoryById(final String id) {
+    private static TableStoreFactory getFactoryById(final String id) {
         try {
             @SuppressWarnings("unchecked")
             Class<? extends TableStoreFactory> type = (Class<? extends TableStoreFactory>)Class.forName(id);
@@ -151,7 +208,7 @@ public class FastTables {
         }
     }
 
-    public static ColumnType<?, ?>[] getFastTableSpec(final DataTableSpec spec, final boolean rowKey) {
+    static ColumnType<?, ?>[] getFastTableSpec(final DataTableSpec spec, final boolean rowKey) {
         ColumnType<?, ?>[] mappedSpec = new ColumnType<?, ?>[spec.getNumColumns() + (rowKey ? 1 : 0)];
         if (rowKey) {
             // TODO introduce RowKeyType.INSTANCE
