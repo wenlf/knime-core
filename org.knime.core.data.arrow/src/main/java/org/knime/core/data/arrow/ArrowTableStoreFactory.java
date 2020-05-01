@@ -132,7 +132,7 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 
 				@Override
 				public int getNumChunks() {
-					return m_reader.size();
+					return m_reader.getNumChunks();
 				}
 
 				@Override

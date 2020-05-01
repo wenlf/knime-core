@@ -64,7 +64,7 @@ public class FieldVectorReader implements AutoCloseable {
 		}
 	}
 
-	public int size() {
+	public int getNumChunks() {
 		try {
 			initialize();
 			return m_blocks.size();
