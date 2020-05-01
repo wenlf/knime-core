@@ -1,9 +1,11 @@
 package org.knime.core.data.table.cache;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.knime.core.data.column.ColumnChunk;
 import org.knime.core.data.column.ColumnType;
@@ -16,7 +18,7 @@ import org.knime.core.data.table.store.TableReadStore;
 // TODO interface for cache
 // TODO async pre flush?
 // TODO thread-safety
-public class CachedTableReadStore implements TableReadStore, AutoCloseable {
+public class CachedTableReadStore implements TableReadStore {
 
 	// one cache for each column. use-case: two tables with different filters access
 	// same table.
@@ -37,8 +39,17 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 		m_delegate = delegate;
 	}
 
-	// increment the number of chunks by one (in case we're currently still
-	// writing).
+	public CachedTableReadStore(final TableReadStore delegate) {
+		this(delegate, initializeEmptyCaches(delegate.getColumnTypes().length));
+	}
+
+	private static List<Map<Integer, ColumnChunk>> initializeEmptyCaches(int numCaches) {
+		final ArrayList<Map<Integer, ColumnChunk>> caches = new ArrayList<>();
+		for (int i = 0; i < numCaches; i++) {
+			caches.add(new TreeMap<Integer, ColumnChunk>());
+		}
+		return caches;
+	}
 
 	// TODO we have to set this from outside when loading the store for read-only
 	void incNumChunks() {
@@ -173,7 +184,6 @@ public class CachedTableReadStore implements TableReadStore, AutoCloseable {
 
 	@Override
 	public long size() {
-		// TODO Auto-generated method stub
-		return 0;
+		return m_delegate.size();
 	}
 }

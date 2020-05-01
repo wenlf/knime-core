@@ -8,4 +8,6 @@ public interface TableStoreFactory extends AutoCloseable {
 
 	TableStore create(ColumnType<?, ?>[] schema, File file, TableStoreConfig config);
 
+	TableReadStore create(ColumnType<?, ?>[] schema, File file, long size);
+
 }

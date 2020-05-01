@@ -1,7 +1,10 @@
 package org.knime.core.data.arrow;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 
 import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
@@ -23,73 +26,48 @@ import org.knime.core.data.row.RowBatchFactory;
 import org.knime.core.data.row.RowBatchReader;
 import org.knime.core.data.row.RowBatchReaderConfig;
 import org.knime.core.data.row.RowBatchWriter;
+import org.knime.core.data.table.store.TableReadStore;
 import org.knime.core.data.table.store.TableStore;
 import org.knime.core.data.table.store.TableStoreConfig;
 import org.knime.core.data.table.store.TableStoreFactory;
 
 public class ArrowTableStoreFactory implements TableStoreFactory {
 
-	private final BufferAllocator m_root;
+	private final static BufferAllocator ROOT = new RootAllocator();
 
 	public ArrowTableStoreFactory() {
-		m_root = new RootAllocator();
 	}
 
 	@Override
 	public void close() throws Exception {
-		m_root.close();
+		// TODO close? Must be unique over application.
+		// ROOT.close();
 	}
 
 	@Override
-	public TableStore create(ColumnType<?, ?>[] schema, File file, TableStoreConfig config) {
-		return new ArrowTableStore(file, schema, config);
+	public TableStore create(ColumnType<?, ?>[] types, File file, TableStoreConfig config) {
+		return new ArrowTableStore(file, types, config);
 	}
 
-	final class ArrowTableStore implements TableStore {
+	@Override
+	public TableReadStore create(ColumnType<?, ?>[] types, File file, long size) {
+		return new ArrowTableReadStore(file, types, ROOT.newChildAllocator("ArrowReadStore", 0, ROOT.getLimit()));
+	}
+
+	// TODO THINKING: Does the writer determine the read chunk size? also in
+	// parquet?
+	final class ArrowTableReadStore implements TableReadStore {
 
 		private final ColumnType<?, ?>[] m_types;
-
-		// TODO give a meaningful name :-)
-		private final BufferAllocator m_childAllocator = m_root.newChildAllocator("ArrowStore", 0, m_root.getLimit());
 		private final File m_file;
 
-		private TableStoreConfig m_config;
-
 		private long m_size;
+		private BufferAllocator m_allocator;
 
-		ArrowTableStore(File file, final ColumnType<?, ?>[] types, TableStoreConfig config) {
-			m_types = types;
+		ArrowTableReadStore(File file, ColumnType<?, ?>[] types, final BufferAllocator allocator) {
 			m_file = file;
-			m_config = config;
-		}
-
-		@Override
-		public RowBatchWriter getWriter() {
-			return new RowBatchWriter() {
-				private final FieldVectorWriter m_writer = new FieldVectorWriter(m_file);;
-
-				// TODO type on Record on FieldVector?
-				@Override
-				public void write(RowBatch record) {
-					try {
-						final ColumnChunk[] recordData = record.getRecordData();
-						final FieldVector[] vectorData = new FieldVector[recordData.length];
-						for (int i = 0; i < vectorData.length; i++) {
-							vectorData[i] = ((FieldVectorChunk<?>) recordData[i]).get();
-						}
-						m_size += record.getNumValues();
-						m_writer.write(vectorData);
-					} catch (IOException e) {
-						// TODO
-						throw new RuntimeException(e);
-					}
-				}
-
-				@Override
-				public void close() throws Exception {
-					m_writer.close();
-				}
-			};
+			m_types = types;
+			m_allocator = allocator;
 		}
 
 		@Override
@@ -100,7 +78,7 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 				private final FieldVectorReader m_reader;
 				{
 					try {
-						m_reader = new FieldVectorReader(m_file, m_childAllocator);
+						m_reader = new FieldVectorReader(m_file, m_allocator);
 					} catch (IOException e) {
 						// TODO
 						throw new RuntimeException(e);
@@ -148,21 +126,109 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 		}
 
 		@Override
+		public long size() {
+			return m_size;
+		}
+
+		void setSize(long size) {
+			m_size = size;
+		}
+
+		@Override
 		public void close() throws Exception {
+			m_allocator.close();
+		}
+	}
+
+	final class ArrowTableStore implements TableStore {
+
+		private final ColumnType<?, ?>[] m_types;
+
+		// TODO give a more meaningful name than 'ArrowStore' :-)
+		private final BufferAllocator m_childAllocator = ROOT.newChildAllocator("ArrowStore", 0, ROOT.getLimit());
+		private final File m_file;
+
+		private TableStoreConfig m_config;
+
+		private long m_size;
+
+		private ArrowTableReadStore m_readStore;
+
+		ArrowTableStore(File file, final ColumnType<?, ?>[] types, TableStoreConfig config) {
+			m_readStore = new ArrowTableReadStore(file, types, m_childAllocator);
+			m_types = types;
+			m_file = file;
+			m_config = config;
+		}
+
+		@Override
+		public RowBatchWriter getWriter() {
+			return new RowBatchWriter() {
+				private final FieldVectorWriter m_writer = new FieldVectorWriter(m_file);;
+
+				// TODO type on Record on FieldVector?
+				@Override
+				public void write(RowBatch record) {
+					try {
+						final ColumnChunk[] recordData = record.getRecordData();
+						final FieldVector[] vectorData = new FieldVector[recordData.length];
+						for (int i = 0; i < vectorData.length; i++) {
+							vectorData[i] = ((FieldVectorChunk<?>) recordData[i]).get();
+						}
+						m_size += record.getNumValues();
+						m_readStore.setSize(m_size);
+						m_writer.write(vectorData);
+					} catch (IOException e) {
+						// TODO
+						throw new RuntimeException(e);
+					}
+				}
+
+				@Override
+				public void close() throws Exception {
+					m_writer.close();
+				}
+			};
+		}
+
+		@Override
+		public RowBatchReader createReader(RowBatchReaderConfig config) {
+			return m_readStore.createReader(config);
+		}
+
+		@Override
+		public ColumnType<?, ?>[] getColumnTypes() {
+			return m_types;
+		}
+
+		@Override
+		public void close() throws Exception {
+			// TODO close read before write?
 			m_childAllocator.close();
+			m_readStore.close();
 		}
 
 		@Override
 		public RowBatchFactory createFactory() {
 			// TODO change interface... see 'AbstractRecordFactory'
 			// TODO use child allocator per store!!
-			return new ArrowRowBatchFactory(m_types, m_root,
+			return new ArrowRowBatchFactory(m_types, ROOT,
 					BaseAllocator.nextPowerOfTwo(m_config.getInitialChunkSize()) - 1);
 		}
 
 		@Override
 		public long size() {
 			return m_size;
+		}
+
+		@Override
+		public void copyDataTo(File file) throws FileNotFoundException, IOException {
+			Files.copy(m_file.toPath(), new FileOutputStream(file));
+		}
+
+		@Override
+		public Class<ArrowTableStoreFactory> getFactory() {
+			return ArrowTableStoreFactory.class;
 		}
 	}
 }

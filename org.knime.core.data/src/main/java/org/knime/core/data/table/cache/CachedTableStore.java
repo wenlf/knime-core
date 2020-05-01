@@ -1,5 +1,6 @@
 package org.knime.core.data.table.cache;
 
+import java.io.File;
 import java.io.Flushable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import org.knime.core.data.row.RowBatchReader;
 import org.knime.core.data.row.RowBatchReaderConfig;
 import org.knime.core.data.row.RowBatchWriter;
 import org.knime.core.data.table.store.TableStore;
+import org.knime.core.data.table.store.TableStoreFactory;
 
 /*
  TODO interface for cache
@@ -148,4 +150,19 @@ public class CachedTableStore implements TableStore, Flushable {
 	public long size() {
 		return m_size;
 	}
+
+	@Override
+	public void copyDataTo(File file) throws IOException {
+		// before copy we need to flush.
+		// TODO we can flush really smart (copy data to file which is already flushed
+		// and THEN flush the rest of the data into the file.
+		flush();
+		m_delegate.copyDataTo(file);
+	}
+
+	@Override
+	public Class<? extends TableStoreFactory> getFactory() {
+		return m_delegate.getFactory();
+	}
+
 }

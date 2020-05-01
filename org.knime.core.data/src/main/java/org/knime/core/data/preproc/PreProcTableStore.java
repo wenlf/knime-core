@@ -1,5 +1,7 @@
 package org.knime.core.data.preproc;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +21,7 @@ import org.knime.core.data.row.RowBatchReader;
 import org.knime.core.data.row.RowBatchReaderConfig;
 import org.knime.core.data.row.RowBatchWriter;
 import org.knime.core.data.table.store.TableStore;
+import org.knime.core.data.table.store.TableStoreFactory;
 import org.knime.core.data.type.DoubleDomainCalculator;
 import org.knime.core.data.type.DoubleType;
 import org.knime.core.data.type.StringDomainCalculator;
@@ -167,6 +170,17 @@ public class PreProcTableStore implements TableStore {
 	@Override
 	public long size() {
 		return m_delegate.size();
+	}
+
+	@Override
+	public void copyDataTo(File file) throws IOException {
+		// TODO save domains?
+		m_delegate.copyDataTo(file);
+	}
+
+	@Override
+	public Class<? extends TableStoreFactory> getFactory() {
+		return m_delegate.getFactory();
 	}
 
 }

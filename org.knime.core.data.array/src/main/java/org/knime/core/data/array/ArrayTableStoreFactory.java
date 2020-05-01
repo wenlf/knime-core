@@ -1,6 +1,7 @@
 package org.knime.core.data.array;
 
 import java.io.File;
+import java.io.IOException;
 
 import org.knime.core.data.column.ColumnType;
 import org.knime.core.data.row.RowBatch;
@@ -85,6 +86,18 @@ public class ArrayTableStoreFactory implements TableStoreFactory {
 			public long size() {
 				// TODO Auto-generated method stub
 				return 0;
+			}
+
+			@Override
+			public void copyDataTo(File file) throws IOException {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public Class<? extends TableStoreFactory> getFactory() {
+				// TODO Auto-generated method stub
+				return null;
 			}
 		};
 	}
