@@ -87,6 +87,8 @@ import org.knime.core.data.container.RearrangeColumnsTable;
 import org.knime.core.data.container.TableSpecReplacerTable;
 import org.knime.core.data.container.VoidTable;
 import org.knime.core.data.container.WrappedTable;
+import org.knime.core.data.container.fast.FastTable;
+import org.knime.core.data.container.fast.FastTables;
 import org.knime.core.data.container.filter.CloseableDataRowIterable;
 import org.knime.core.data.container.filter.TableFilter;
 import org.knime.core.data.container.storage.TableStoreFormat;
@@ -184,6 +186,15 @@ public final class BufferedDataTable implements DataTable, PortObject {
     private final KnowsRowCountTable m_delegate;
     private int m_tableID;
     private Node m_owner;
+
+    /**
+     * Creates a new buffered data table based on a container table (caching everything).
+     *
+     * @param table The reference.
+     */
+    BufferedDataTable(final ContainerTable table) {
+        this(table, table.getTableId(), null);
+    }
 
     /**
      * Creates a new buffered data table based on a container table (caching everything).
@@ -520,7 +531,14 @@ public final class BufferedDataTable implements DataTable, PortObject {
      * format other than GZIP under this value in order to make KNIME <= 3.7 fail when loading such a workflow.
      */
     private static final String TABLE_TYPE_CONTAINER_COMPRESS = "container_table_compressed";
+
+    /**
+     * As of 4.2 KNIME offers a new type of table API.
+     */
+    private static final String TABLE_TYPE_CONTAINER_FAST = "container_table_fast";
+
     private static final String TABLE_TYPE_REARRANGE_COLUMN = "rearrange_columns_table";
+
     /**
      * Similar to the container table (see above), we have to make sure that earlier versions of KNIME complain when
      * loading a workflow that has been written with a custom table store format (e.g., Parquet) or custom compression
@@ -580,9 +598,15 @@ public final class BufferedDataTable implements DataTable, PortObject {
                 }
             }
             m_delegate.saveToFile(outFile, s, exec);
+        } else if (m_delegate instanceof FastTable) {
+            // TODO do we need to store anything else here? everything else can be stored by the format, right?
+            s.addString(CFG_TABLE_TYPE, TABLE_TYPE_CONTAINER_FAST);
+            FastTables.saveToFile((FastTable)m_delegate, outFile, s, exec);
         } else {
             if (m_delegate instanceof RearrangeColumnsTable) {
-                final BufferedContainerTable appendTable = (BufferedContainerTable)((RearrangeColumnsTable)m_delegate).getAppendTable();
+                // TODO delegate couldbe a fast table
+                final BufferedContainerTable appendTable =
+                    (BufferedContainerTable)((RearrangeColumnsTable)m_delegate).getAppendTable();
                 if (appendTable != null) {
                     final TableStoreFormat format = appendTable.getTableStoreFormat();
                     if (!DefaultTableStoreFormat.class.equals(format.getClass())) {
@@ -787,6 +811,11 @@ public final class BufferedDataTable implements DataTable, PortObject {
             case TABLE_TYPE_CONTAINER_COMPRESS: // added in 4.0
                 final ContainerTable cont = BufferedDataContainer.readFromZipDelayed(fileRef, spec, id, dataRepository);
                 t = new BufferedDataTable(cont, id);
+                break;
+            case TABLE_TYPE_CONTAINER_FAST: // added in 4.2
+                final FastTable fastTable = FastTables.readFromFileDelayed(fileRef, spec, id, dataRepository);
+                // TODO I introduced the constructor without id (getting ID from fast-table). can ID of delegate and BufferedTable differ?
+                t = new BufferedDataTable(fastTable);
                 break;
             case TABLE_TYPE_REARRANGE_COLUMN_CUSTOM:
             case TABLE_TYPE_REARRANGE_COLUMN_COMPRESS:

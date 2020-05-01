@@ -61,6 +61,8 @@ import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.IDataRepository;
 import org.knime.core.data.RowIterator;
 import org.knime.core.data.RowKey;
+import org.knime.core.data.container.fast.FastTableConfig;
+import org.knime.core.data.container.fast.FastTables;
 import org.knime.core.data.filestore.internal.IWriteFileStoreHandler;
 import org.knime.core.data.filestore.internal.NotInWorkflowDataRepository;
 import org.knime.core.data.filestore.internal.NotInWorkflowWriteFileStoreHandler;
@@ -196,17 +198,20 @@ public class DataContainer implements RowAppender {
      * @param fileStoreHandler a filestore handler
      * @param forceCopyOfBlobs true, if blobs should be copied
      * @param rowKeys if <code>true</code>, {@link RowKey}s are expected to be part of a {@link DataRow}.
+     * @param enableFastTables if <code>true</code> fast table implementation can be used.
      * @throws IllegalArgumentException If <code>maxCellsInMemory</code> &lt; 0 or the spec is null
      */
+
+    // TODO move rowKeys / fasttables into DataContainer settings
     protected DataContainer(final DataTableSpec spec, final boolean initDomain, final int maxCellsInMemory,
         final boolean forceSynchronousIO, final IDataRepository repository,
         final Map<Integer, ContainerTable> localTableRepository, final IWriteFileStoreHandler fileStoreHandler,
-        final boolean forceCopyOfBlobs, final boolean rowKeys) {
+        final boolean forceCopyOfBlobs, final boolean rowKeys, final boolean enableFastTables) {
         this(spec,
             DataContainerSettings.getDefault().withInitializedDomain(initDomain).withMaxCellsInMemory(maxCellsInMemory)
                 .withForceSequentialRowHandling(
                     forceSynchronousIO || DataContainerSettings.getDefault().isForceSequentialRowHandling()),
-            repository, localTableRepository, fileStoreHandler, forceCopyOfBlobs, rowKeys);
+            repository, localTableRepository, fileStoreHandler, forceCopyOfBlobs, rowKeys, enableFastTables);
     }
 
     /**
@@ -217,7 +222,7 @@ public class DataContainer implements RowAppender {
      * @noreference This constructor is not intended to be referenced by clients.
      */
     public DataContainer(final DataTableSpec spec, final DataContainerSettings settings) {
-        this(spec, settings, NotInWorkflowDataRepository.newInstance(), new HashMap<>(), null, false, true);
+        this(spec, settings, NotInWorkflowDataRepository.newInstance(), new HashMap<>(), null, false, true, false);
     }
 
     /**
@@ -237,19 +242,37 @@ public class DataContainer implements RowAppender {
                     forceSynchronousIO || DataContainerSettings.getDefault().isForceSequentialRowHandling()));
     }
 
-    /**
-     * @param spec
-     * @param withForceSequentialRowHandling
-     * @param repository
-     */
     private DataContainer(final DataTableSpec spec, final DataContainerSettings settings,
         final IDataRepository repository, final Map<Integer, ContainerTable> localRepository,
-        final IWriteFileStoreHandler fileStoreHandler, final boolean forceCopyOfBlobs, final boolean rowKeys) {
+        final IWriteFileStoreHandler fileStoreHandler, final boolean forceCopyOfBlobs, final boolean rowKeys,
+        final boolean enableFastTables) {
         m_spec = spec;
         m_localRepository = localRepository;
 
-        m_rowContainer = new BufferedRowContainer(spec, settings, repository, localRepository,
-            initFileStoreHandler(fileStoreHandler, repository), forceCopyOfBlobs, rowKeys);
+        // currently only enabled by BufferedDataContainers...
+        if (enableFastTables && FastTables.isCompatible(spec)) {
+            // TODO wrapper of FastTableConfig and DataContainerSettings as soon as we moved rowKeys, force etc into DataContainerSettings.
+            m_rowContainer = FastTables.create(spec, new FastTableConfig() {
+                @Override
+                public boolean isRowKeyEnabled() {
+                    return rowKeys;
+                }
+
+                @Override
+                public int maxContainerThreads() {
+                    return settings.getMaxContainerThreads();
+                }
+
+                @Override
+                public int maxNumDomainValues() {
+                    return settings.getMaxDomainValues();
+                }
+            });
+        } else {
+            // use default implementation of RowContainer
+            m_rowContainer = new BufferedRowContainer(spec, settings, repository, localRepository,
+                initFileStoreHandler(fileStoreHandler, repository), forceCopyOfBlobs, rowKeys);
+        }
     }
 
     /**
@@ -545,6 +568,7 @@ public class DataContainer implements RowAppender {
     // RearrangeColumnsTable when it reads a table that has been written
     // with KNIME 1.1.x or before.
     static ContainerTable readFromZip(final ReferencedFile zipFileRef, final boolean rowKeys) throws IOException {
+        // TODO
         return BufferedRowContainer.readFromZip(zipFileRef, rowKeys);
     }
 
