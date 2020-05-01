@@ -1,14 +1,24 @@
-package org.knime.core.data.table;
+package org.knime.core.data.table.store;
 
 import org.knime.core.data.column.ColumnType;
 import org.knime.core.data.row.RowBatchReaderConfig;
 import org.knime.core.data.row.RowBatchUtils;
 import org.knime.core.data.row.RowReadCursor;
 import org.knime.core.data.row.RowWriteCursor;
-import org.knime.core.data.table.store.TableReadStore;
-import org.knime.core.data.table.store.TableStore;
+import org.knime.core.data.table.ReadTable;
+import org.knime.core.data.table.WriteTable;
+import org.knime.core.data.table.cache.CachedTableReadStore;
+import org.knime.core.data.table.cache.CachedTableStore;
 
-public class TableUtils {
+public class TableStoreUtils {
+
+	public static CachedTableStore cache(final TableStore store) {
+		return new CachedTableStore(store);
+	}
+
+	public static CachedTableReadStore cache(final TableReadStore store) {
+		return new CachedTableReadStore(store);
+	}
 
 	public static WriteTable createWriteTable(TableStore store) {
 		return new WriteTable() {

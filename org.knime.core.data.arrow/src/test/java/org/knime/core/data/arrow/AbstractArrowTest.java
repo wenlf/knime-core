@@ -16,6 +16,7 @@ import org.knime.core.data.row.RowBatchUtils;
 import org.knime.core.data.table.cache.CachedTableStore;
 import org.knime.core.data.table.store.TableStore;
 import org.knime.core.data.table.store.TableStoreConfig;
+import org.knime.core.data.table.store.TableStoreUtils;
 
 public class AbstractArrowTest {
 
@@ -48,7 +49,7 @@ public class AbstractArrowTest {
 	}
 
 	public CachedTableStore cache(TableStore store) {
-		return RowBatchUtils.cache(store);
+		return TableStoreUtils.cache(store);
 	}
 
 	public PreProcTableStore preproc(TableStore delegate, int... indices) {

@@ -15,10 +15,10 @@ import org.knime.core.data.row.RowBatchUtils;
 import org.knime.core.data.row.RowReadCursor;
 import org.knime.core.data.row.RowWriteCursor;
 import org.knime.core.data.table.ReadTable;
-import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
 import org.knime.core.data.table.cache.CachedTableStore;
 import org.knime.core.data.table.store.TableStoreFactory;
+import org.knime.core.data.table.store.TableStoreUtils;
 import org.knime.core.data.type.DoubleType;
 import org.knime.core.data.type.StringType;
 import org.knime.core.data.value.DoubleReadValue;
@@ -97,7 +97,7 @@ public class ArrayBenchmarks {
 
 	@Benchmark
 	public void newTablesBenchmark() throws Exception {
-		final WriteTable writeTable = TableUtils.createWriteTable(m_store);
+		final WriteTable writeTable = TableStoreUtils.createWriteTable(m_store);
 		try (RowWriteCursor writeCursor = writeTable.getCursor()) {
 			final DoubleWriteValue doubleWriteValue = (DoubleWriteValue) writeCursor.get(0);
 			final StringWriteValue stringWriteValue = (StringWriteValue) writeCursor.get(1);
@@ -108,7 +108,7 @@ public class ArrayBenchmarks {
 			}
 		}
 
-		final ReadTable readTable = TableUtils.createReadTable(m_store, new RowBatchReaderConfig() {
+		final ReadTable readTable = TableStoreUtils.createReadTable(m_store, new RowBatchReaderConfig() {
 			@Override
 			public int[] getColumnIndices() {
 				// TODO if null, all.

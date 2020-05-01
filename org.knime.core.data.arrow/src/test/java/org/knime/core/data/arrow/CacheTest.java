@@ -7,9 +7,9 @@ import org.junit.Test;
 import org.knime.core.data.row.RowReadCursor;
 import org.knime.core.data.row.RowWriteCursor;
 import org.knime.core.data.table.ReadTable;
-import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
 import org.knime.core.data.table.cache.CachedTableStore;
+import org.knime.core.data.table.store.TableStoreUtils;
 import org.knime.core.data.type.DoubleType;
 import org.knime.core.data.type.StringType;
 import org.knime.core.data.value.DoubleReadValue;
@@ -26,7 +26,7 @@ public class CacheTest extends AbstractArrowTest {
 		try (CachedTableStore cache = cache(
 				createStore(chunkSize, DoubleType.INSTANCE, StringType.INSTANCE, DoubleType.INSTANCE))) {
 			// TODO create writer hints (e.g. dictionary encoding for column X)
-			final WriteTable writeTable = TableUtils.createWriteTable(cache);
+			final WriteTable writeTable = TableStoreUtils.createWriteTable(cache);
 			try (RowWriteCursor writeCursor = writeTable.getCursor()) {
 				final DoubleWriteValue doubleWriteValue = writeCursor.get(0);
 				final StringWriteValue stringWriteValue = writeCursor.get(1);
@@ -63,7 +63,7 @@ public class CacheTest extends AbstractArrowTest {
 			 */
 			cache.flush();
 
-			final ReadTable readTable = TableUtils.createReadTable(cache);
+			final ReadTable readTable = TableStoreUtils.createReadTable(cache);
 			try (RowReadCursor readCursor = readTable.newCursor()) {
 				DoubleReadValue doubleReadValue = (DoubleReadValue) readCursor.get(0);
 				StringReadValue stringReadValue = (StringReadValue) readCursor.get(1);

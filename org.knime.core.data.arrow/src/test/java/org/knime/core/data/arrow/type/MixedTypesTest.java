@@ -8,9 +8,9 @@ import org.knime.core.data.row.RowUtils;
 import org.knime.core.data.row.RowUtils.ValueRange;
 import org.knime.core.data.row.RowWriteCursor;
 import org.knime.core.data.table.ReadTable;
-import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
 import org.knime.core.data.table.store.TableStore;
+import org.knime.core.data.table.store.TableStoreUtils;
 import org.knime.core.data.type.DateTimeType;
 import org.knime.core.data.type.DoubleType;
 import org.knime.core.data.type.StringType;
@@ -30,7 +30,7 @@ public class MixedTypesTest extends AbstractArrowTest {
 
 		try (final TableStore store = cache(createStore(chunkSize, DoubleType.INSTANCE, DoubleType.INSTANCE,
 				StringType.INSTANCE, DateTimeType.INSTANCE))) {
-			final WriteTable writeTable = TableUtils.createWriteTable(store);
+			final WriteTable writeTable = TableStoreUtils.createWriteTable(store);
 			try (RowWriteCursor writeCursor = writeTable.getCursor()) {
 				final ValueRange<DoubleWriteValue> doubleRange = RowUtils.getRange(writeCursor, 0, 2);
 				final StringWriteValue stringWriteValue = writeCursor.get(2);
@@ -52,7 +52,7 @@ public class MixedTypesTest extends AbstractArrowTest {
 				}
 			}
 
-			final ReadTable readTable = TableUtils.createReadTable(store);
+			final ReadTable readTable = TableStoreUtils.createReadTable(store);
 			try (RowReadCursor readCursor = readTable.newCursor()) {
 				final ValueRange<DoubleReadValue> doubleRange = RowUtils.getRange(readCursor, 0, 2);
 				final StringReadValue stringReadValue = readCursor.get(2);

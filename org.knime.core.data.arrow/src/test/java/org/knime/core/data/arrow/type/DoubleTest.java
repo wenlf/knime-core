@@ -10,9 +10,9 @@ import org.knime.core.data.preproc.PreProcTableStore;
 import org.knime.core.data.row.RowReadCursor;
 import org.knime.core.data.row.RowWriteCursor;
 import org.knime.core.data.table.ReadTable;
-import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
 import org.knime.core.data.table.store.TableStore;
+import org.knime.core.data.table.store.TableStoreUtils;
 import org.knime.core.data.type.DoubleAccess;
 import org.knime.core.data.type.DoubleDomain;
 import org.knime.core.data.type.DoubleType;
@@ -62,7 +62,7 @@ public class DoubleTest extends AbstractArrowTest {
 		final int numRows = 1702;
 
 		try (final TableStore store = cache(createStore(chunkSize, DoubleType.INSTANCE))) {
-			final WriteTable writeTable = TableUtils.createWriteTable(store);
+			final WriteTable writeTable = TableStoreUtils.createWriteTable(store);
 			try (RowWriteCursor writeCursor = writeTable.getCursor()) {
 				final DoubleWriteValue doubleWriteValue = writeCursor.get(0);
 				for (int i = 0; i < numRows; i++) {
@@ -74,7 +74,7 @@ public class DoubleTest extends AbstractArrowTest {
 					}
 				}
 			}
-			final ReadTable readTable = TableUtils.createReadTable(store);
+			final ReadTable readTable = TableStoreUtils.createReadTable(store);
 			try (RowReadCursor readCursor = readTable.newCursor()) {
 				DoubleReadValue doubleReadValue = readCursor.get(0);
 				for (int i = 0; i < numRows; i++) {
@@ -96,7 +96,7 @@ public class DoubleTest extends AbstractArrowTest {
 
 		try (final PreProcTableStore store = preproc(
 				cache(createStore(chunkSize, DoubleType.INSTANCE, DoubleType.INSTANCE)), 0, 1)) {
-			final WriteTable writeTable = TableUtils.createWriteTable(store);
+			final WriteTable writeTable = TableStoreUtils.createWriteTable(store);
 			try (RowWriteCursor writeCursor = writeTable.getCursor()) {
 				final DoubleWriteValue doubleWriteValue = writeCursor.get(0);
 				for (int i = 0; i < numRows; i++) {

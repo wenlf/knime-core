@@ -12,9 +12,9 @@ import org.knime.core.data.row.RowUtils;
 import org.knime.core.data.row.RowUtils.ValueRange;
 import org.knime.core.data.row.RowWriteCursor;
 import org.knime.core.data.table.ReadTable;
-import org.knime.core.data.table.TableUtils;
 import org.knime.core.data.table.WriteTable;
 import org.knime.core.data.table.cache.CachedTableStore;
+import org.knime.core.data.table.store.TableStoreUtils;
 import org.knime.core.data.type.DoubleType;
 import org.knime.core.data.value.DoubleReadValue;
 import org.knime.core.data.value.DoubleWriteValue;
@@ -100,7 +100,7 @@ public class ArrowBenchmarks extends AbstractArrowTest {
 		final int numRows = wide ? m_y : m_x;
 		final int numColumns = wide ? m_x : m_y;
 
-		final WriteTable writeTable = TableUtils.createWriteTable(m_store);
+		final WriteTable writeTable = TableStoreUtils.createWriteTable(m_store);
 		try (RowWriteCursor writeCursor = writeTable.getCursor()) {
 			final ValueRange<DoubleWriteValue> doubleWriteValue = RowUtils.getRange(writeCursor, 0, numColumns);
 			for (int i = 0; i < numRows; i++) {
@@ -116,7 +116,7 @@ public class ArrowBenchmarks extends AbstractArrowTest {
 				}
 			}
 		}
-		final ReadTable readTable = TableUtils.createReadTable(m_store);
+		final ReadTable readTable = TableStoreUtils.createReadTable(m_store);
 		try (RowReadCursor readCursor = readTable.newCursor()) {
 			final ValueRange<DoubleReadValue> doubleReadValue = RowUtils.getRange(readCursor, 0, numColumns);
 			for (int i = 0; i < numRows; i++) {
