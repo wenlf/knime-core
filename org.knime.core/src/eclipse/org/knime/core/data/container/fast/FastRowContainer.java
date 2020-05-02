@@ -108,10 +108,10 @@ public class FastRowContainer implements RowContainer {
 
         m_consumers = new DataCellConsumer[spec.getNumColumns()];
         final ColumnType<?, ?>[] columnTypes = store.getColumnTypes();
-        for (int i = 0; i < m_consumers.length + 1; i++) {
-            if (columnTypes[i] instanceof DoubleType) {
+        for (int i = 0; i < m_consumers.length; i++) {
+            if (columnTypes[i + offset] instanceof DoubleType) {
                 m_consumers[i] = (DataCellConsumer)new DoubleCellConsumer(m_cursor.get(i + offset));
-            } else if (columnTypes[i] instanceof StringType) {
+            } else if (columnTypes[i + offset] instanceof StringType) {
                 m_consumers[i] = (DataCellConsumer)new StringCellConsumer(m_cursor.get(i + offset));
             }
         }
@@ -145,9 +145,9 @@ public class FastRowContainer implements RowContainer {
         for (int i = 0; i < row.getNumCells(); i++) {
             final DataCell cell = row.getCell(i);
             if (cell.isMissing()) {
-                m_consumers[i + 1].setMissing();
+                m_consumers[i].setMissing();
             } else {
-                m_consumers[i + 1].accept(cell);
+                m_consumers[i].accept(cell);
             }
         }
     }

@@ -62,6 +62,7 @@ import org.knime.core.data.def.StringCell;
 import org.knime.core.data.table.store.TableStore;
 import org.knime.core.data.table.store.TableStoreConfig;
 import org.knime.core.data.table.store.TableStoreFactory;
+import org.knime.core.data.table.store.TableStoreUtils;
 import org.knime.core.data.type.DoubleType;
 import org.knime.core.data.type.StringType;
 import org.knime.core.internal.ReferencedFile;
@@ -131,7 +132,7 @@ public class FastTables {
     public static void saveToFile(final FastTable delegate, final File outFile, final NodeSettings s,
         final ExecutionMonitor exec) throws IOException, CanceledExecutionException {
         // TODO AVOID cast.
-        s.addString(FAST_TABLE_CONTAINER_TYPE, ((TableStore)delegate.getStore()).getFactory().getCanonicalName());
+        s.addString(FAST_TABLE_CONTAINER_TYPE, delegate.getStore().getFactory().getCanonicalName());
         s.addLong(FAST_TABLE_CONTAINER_SIZE, delegate.size());
         s.addBoolean(FAST_TABLE_CONTAINER_ROWKEY, delegate.isRowKeys());
         delegate.saveToFile(outFile, s, exec);
@@ -150,15 +151,15 @@ public class FastTables {
     @SuppressWarnings("resource")
     public static FastRowContainer create(final int tableId, final DataTableSpec spec, final FastTableConfig config,
         final File dest, final boolean isRowKey) {
-        final TableStore store =
-            FACTORIES[0].create(getFastTableSpec(spec, config.isRowKeyEnabled()), dest, new TableStoreConfig() {
+        final TableStore store = TableStoreUtils
+            .cache(FACTORIES[0].create(getFastTableSpec(spec, config.isRowKeyEnabled()), dest, new TableStoreConfig() {
 
                 @Override
                 public int getInitialChunkSize() {
                     // TODO make configurable
                     return 64000;
                 }
-            });
+            }));
         return new FastRowContainer(tableId, spec, store, isRowKey);
     }
 

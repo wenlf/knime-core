@@ -63,6 +63,11 @@ class LazyFastTable extends AbstractFastTable {
      */
     @Override
     public void ensureOpen() {
+        // TODO revise logic here.
+        CopyOnAccessTask readTask = m_readTask;
+        if (readTask == null) {
+            return;
+        }
         synchronized (m_readTask) {
             // synchronized may have blocked when another thread was
             // executing the copy task. If so, there is nothing else to
@@ -112,6 +117,7 @@ class LazyFastTable extends AbstractFastTable {
      */
     @Override
     public TableReadStore getStore() {
+        ensureOpen();
         return m_store;
     }
 
