@@ -50,6 +50,11 @@ package org.knime.core.data.container.fast;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataTableSpec;
@@ -57,8 +62,10 @@ import org.knime.core.data.DataType;
 import org.knime.core.data.arrow.ArrowTableStoreFactory;
 import org.knime.core.data.column.ColumnType;
 import org.knime.core.data.container.RowContainer;
+import org.knime.core.data.container.filter.TableFilter;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.StringCell;
+import org.knime.core.data.row.RowBatchReaderConfig;
 import org.knime.core.data.table.store.TableStore;
 import org.knime.core.data.table.store.TableStoreConfig;
 import org.knime.core.data.table.store.TableStoreFactory;
@@ -180,6 +187,27 @@ public class FastTables {
         return true;
     }
 
+    static RowBatchReaderConfig create(final TableFilter filter) {
+        return new RowBatchReaderConfig() {
+            @Override
+            public int[] getColumnIndices() {
+                Optional<Set<Integer>> materializeColumnIndices = filter.getMaterializeColumnIndices();
+                final int[] selected;
+                if (materializeColumnIndices.isPresent()) {
+                    final List<Integer> indices = new ArrayList<>(materializeColumnIndices.get());
+                    Collections.sort(indices);
+                    selected = new int[indices.size()];
+                    for (int i = 0; i < selected.length; i++) {
+                        selected[i] = indices.get(i);
+                    }
+                } else {
+                    selected = null;
+                }
+                return selected;
+            }
+        };
+    }
+
     private static TableStoreFactory getFactoryByClass(final Class<?> class1) {
         for (TableStoreFactory factory : FACTORIES) {
             if (factory.getClass().isAssignableFrom(class1)) {
@@ -211,12 +239,15 @@ public class FastTables {
 
     static ColumnType<?, ?>[] getFastTableSpec(final DataTableSpec spec, final boolean rowKey) {
         ColumnType<?, ?>[] mappedSpec = new ColumnType<?, ?>[spec.getNumColumns() + (rowKey ? 1 : 0)];
+
+        int offset = 0;
         if (rowKey) {
             // TODO introduce RowKeyType.INSTANCE
             mappedSpec[0] = StringType.INSTANCE;
+            offset = 1;
         }
-        for (int i = (rowKey ? 1 : 0); i < mappedSpec.length; i++) {
-            mappedSpec[i] = map(spec.getColumnSpec(i - 1));
+        for (int i = offset; i < mappedSpec.length; i++) {
+            mappedSpec[i] = map(spec.getColumnSpec(i - offset));
         }
         return mappedSpec;
     }

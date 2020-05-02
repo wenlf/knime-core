@@ -8,8 +8,12 @@ import java.util.TimerTask;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.IDataRepository;
 import org.knime.core.data.column.ColumnType;
+import org.knime.core.data.container.CloseableRowIterator;
+import org.knime.core.data.container.filter.TableFilter;
+import org.knime.core.data.table.ReadTable;
 import org.knime.core.data.table.store.TableReadStore;
 import org.knime.core.data.table.store.TableStoreFactory;
+import org.knime.core.data.table.store.TableStoreUtils;
 import org.knime.core.internal.ReferencedFile;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
@@ -26,11 +30,11 @@ import org.knime.core.util.KNIMETimer;
  */
 class LazyFastTable extends AbstractFastTable {
 
-    private long m_size;
+    private final long m_size;
 
-    private TableStoreFactory m_factory;
+    private final TableStoreFactory m_factory;
 
-    private ColumnType<?, ?>[] m_types;
+    private final ColumnType<?, ?>[] m_types;
 
     private ReferencedFile m_fileRef;
 
@@ -40,12 +44,7 @@ class LazyFastTable extends AbstractFastTable {
 
     private IDataRepository m_repository;
 
-    /**
-     * @param fastTableSpec
-     * @param factory
-     * @param size
-     */
-    public LazyFastTable(final IDataRepository repository, final ReferencedFile fileRef, final int tableId,
+    LazyFastTable(final IDataRepository repository, final ReferencedFile fileRef, final int tableId,
         final DataTableSpec spec, final TableStoreFactory factory, final long size, final boolean isRowKeys) {
         super(tableId, spec, isRowKeys);
         m_types = /* TODO Is this mapping always valid? do things change over time with versions? Should the mapper be stored as well? */
@@ -54,7 +53,6 @@ class LazyFastTable extends AbstractFastTable {
         m_factory = factory;
         m_size = size;
         m_repository = repository;
-
         m_readTask = new CopyOnAccessTask();
     }
 
@@ -63,7 +61,7 @@ class LazyFastTable extends AbstractFastTable {
      */
     @Override
     public void ensureOpen() {
-        // TODO revise logic here.
+        // TODO revise logic here, especially sync logic
         CopyOnAccessTask readTask = m_readTask;
         if (readTask == null) {
             return;
@@ -81,18 +79,8 @@ class LazyFastTable extends AbstractFastTable {
                 throw new RuntimeException(
                     "Exception while accessing file: \"" + m_fileRef.getFile().getName() + "\": " + i.getMessage(), i);
             }
-            m_types = null;
             m_readTask = null;
         }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void saveToFile(final File f, final NodeSettingsWO settings, final ExecutionMonitor exec)
-        throws IOException, CanceledExecutionException {
-        throw new IllegalStateException("Why should I save an already saved table again?");
     }
 
     /**
@@ -102,7 +90,10 @@ class LazyFastTable extends AbstractFastTable {
     public void clear() {
         // just close the store. no need to clean anything up
         try {
-            m_store.close();
+            // TODO required?
+            if (m_store != null) {
+                m_store.close();
+            }
         } catch (Exception ex) {
         }
 
@@ -119,6 +110,47 @@ class LazyFastTable extends AbstractFastTable {
     public TableReadStore getStore() {
         ensureOpen();
         return m_store;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isOpen() {
+        return m_store != null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public long size() {
+        ensureOpen();
+        return m_store.size();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CloseableRowIterator iterator() {
+        ensureOpen();
+        // TODO we don't want to recreate a table per iterator...
+        final ReadTable table = TableStoreUtils.createReadTable(m_store);
+        return new FastTableRowReader(table.newCursor(), m_spec, m_isRowKey);
+    }
+
+    @Override
+    public CloseableRowIterator iteratorWithFilter(final TableFilter filter, final ExecutionMonitor exec) {
+        // TODO implement row index selection as RowBatchReaderConfig (start at...)
+        final ReadTable table = TableStoreUtils.createReadTable(m_store, FastTables.create(filter));
+        return new FastTableRowReader(table.newCursor(), m_spec, m_isRowKey);
+    }
+
+    @Override
+    public void saveToFile(final File f, final NodeSettingsWO settings, final ExecutionMonitor exec)
+        throws IOException, CanceledExecutionException {
+        throw new IllegalStateException("Why should I save an already saved table again?");
     }
 
     final class CopyOnAccessTask {

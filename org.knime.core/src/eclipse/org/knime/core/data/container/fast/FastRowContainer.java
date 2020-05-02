@@ -141,7 +141,10 @@ public class FastRowContainer implements RowContainer {
     @Override
     public void addRowToTable(final DataRow row) {
         m_cursor.fwd();
-        m_rowKeyWriter.setStringValue(row.getKey().getString());
+
+        if (m_isRowKey) {
+            m_rowKeyWriter.setStringValue(row.getKey().getString());
+        }
         for (int i = 0; i < row.getNumCells(); i++) {
             final DataCell cell = row.getCell(i);
             if (cell.isMissing()) {

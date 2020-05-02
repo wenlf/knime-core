@@ -52,8 +52,12 @@ import java.io.File;
 import java.io.IOException;
 
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.container.CloseableRowIterator;
+import org.knime.core.data.container.filter.TableFilter;
+import org.knime.core.data.table.ReadTable;
 import org.knime.core.data.table.store.TableReadStore;
 import org.knime.core.data.table.store.TableStore;
+import org.knime.core.data.table.store.TableStoreUtils;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.NodeSettingsWO;
@@ -120,5 +124,39 @@ public class TmpFastTable extends AbstractFastTable {
             throw new IOException("Can't save a cleared FastTable.");
         }
         m_store.copyDataTo(f);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isOpen() {
+        return m_store != null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public long size() {
+        return m_store.size();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CloseableRowIterator iterator() {
+        ensureOpen();
+        // TODO we don't want to recreate a table per iterator...
+        final ReadTable table = TableStoreUtils.createReadTable(m_store);
+        return new FastTableRowReader(table.newCursor(), m_spec, m_isRowKey);
+    }
+
+    @Override
+    public CloseableRowIterator iteratorWithFilter(final TableFilter filter, final ExecutionMonitor exec) {
+        // TODO implement row index selection as RowBatchReaderConfig (start at...)
+        final ReadTable table = TableStoreUtils.createReadTable(m_store, FastTables.create(filter));
+        return new FastTableRowReader(table.newCursor(), m_spec, m_isRowKey);
     }
 }
