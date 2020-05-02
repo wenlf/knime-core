@@ -10,4 +10,6 @@ public interface TableReadStore extends AutoCloseable {
 	ColumnType<?, ?>[] getColumnTypes();
 
 	long size();
+	
+	Class<? extends TableStoreFactory> getFactory();
 }

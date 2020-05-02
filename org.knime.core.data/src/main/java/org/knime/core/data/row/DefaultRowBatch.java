@@ -19,7 +19,7 @@ public class DefaultRowBatch implements RowBatch {
 
 	public DefaultRowBatch(int chunkSize, ColumnChunk... data) {
 		this(data);
-		// write case. 
+		// write case.
 		m_chunkSize = chunkSize;
 	}
 
@@ -43,6 +43,7 @@ public class DefaultRowBatch implements RowBatch {
 		for (final ColumnChunk data : m_data) {
 			data.setNumValues(numValues);
 		}
+		m_numValues = numValues;
 	}
 
 	@Override

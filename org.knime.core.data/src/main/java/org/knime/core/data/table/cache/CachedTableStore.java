@@ -162,7 +162,7 @@ public class CachedTableStore implements TableStore, Flushable {
 
 	@Override
 	public Class<? extends TableStoreFactory> getFactory() {
-		return m_delegate.getFactory();
+		return m_readCache.getFactory();
 	}
 
 }

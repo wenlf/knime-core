@@ -51,7 +51,7 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 
 	@Override
 	public TableReadStore create(ColumnType<?, ?>[] types, File file, long size) {
-		return new ArrowTableReadStore(file, types, ROOT.newChildAllocator("ArrowReadStore", 0, ROOT.getLimit()));
+		return new ArrowTableReadStore(file, types, ROOT.newChildAllocator("ArrowReadStore", 0, ROOT.getLimit()), size);
 	}
 
 	// TODO THINKING: Does the writer determine the read chunk size? also in
@@ -64,10 +64,15 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 		private long m_size;
 		private BufferAllocator m_allocator;
 
-		ArrowTableReadStore(File file, ColumnType<?, ?>[] types, final BufferAllocator allocator) {
+		ArrowTableReadStore(File file, ColumnType<?, ?>[] types, final BufferAllocator allocator, long size) {
 			m_file = file;
 			m_types = types;
 			m_allocator = allocator;
+			m_size = size;
+		}
+
+		ArrowTableReadStore(File file, ColumnType<?, ?>[] types, final BufferAllocator allocator) {
+			this(file, types, allocator, 0);
 		}
 
 		@Override
@@ -137,6 +142,11 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 		@Override
 		public void close() throws Exception {
 			m_allocator.close();
+		}
+
+		@Override
+		public Class<ArrowTableStoreFactory> getFactory() {
+			return ArrowTableStoreFactory.class;
 		}
 	}
 
@@ -228,7 +238,7 @@ public class ArrowTableStoreFactory implements TableStoreFactory {
 
 		@Override
 		public Class<ArrowTableStoreFactory> getFactory() {
-			return ArrowTableStoreFactory.class;
+			return m_readStore.getFactory();
 		}
 	}
 }

@@ -14,6 +14,7 @@ import org.knime.core.data.row.RowBatch;
 import org.knime.core.data.row.RowBatchReader;
 import org.knime.core.data.row.RowBatchReaderConfig;
 import org.knime.core.data.table.store.TableReadStore;
+import org.knime.core.data.table.store.TableStoreFactory;
 
 // TODO interface for cache
 // TODO async pre flush?
@@ -185,5 +186,10 @@ public class CachedTableReadStore implements TableReadStore {
 	@Override
 	public long size() {
 		return m_delegate.size();
+	}
+
+	@Override
+	public Class<? extends TableStoreFactory> getFactory() {
+		return m_delegate.getFactory();
 	}
 }

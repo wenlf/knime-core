@@ -3,10 +3,6 @@ package org.knime.core.data.row;
 import org.knime.core.data.column.ColumnChunk;
 import org.knime.core.data.column.ColumnChunkAccess;
 import org.knime.core.data.column.ColumnType;
-import org.knime.core.data.table.cache.CachedTableReadStore;
-import org.knime.core.data.table.cache.CachedTableStore;
-import org.knime.core.data.table.store.TableReadStore;
-import org.knime.core.data.table.store.TableStore;
 
 public final class RowBatchUtils {
 
