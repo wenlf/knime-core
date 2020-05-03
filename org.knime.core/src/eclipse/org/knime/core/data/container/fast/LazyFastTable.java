@@ -142,6 +142,7 @@ class LazyFastTable extends AbstractFastTable {
 
     @Override
     public CloseableRowIterator iteratorWithFilter(final TableFilter filter, final ExecutionMonitor exec) {
+        ensureOpen();
         // TODO implement row index selection as RowBatchReaderConfig (start at...)
         final ReadTable table = TableStoreUtils.createReadTable(m_store, FastTables.create(filter));
         return new FastTableRowReader(table.newCursor(), m_spec, m_isRowKey);
