@@ -72,6 +72,8 @@ import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.RowIterator;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.container.ColumnRearranger.SpecAndFactoryObject;
+import org.knime.core.data.container.fast.FastTable;
+import org.knime.core.data.container.fast.FastTables;
 import org.knime.core.data.container.filter.TableFilter;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.filestore.FileStoreFactory;
@@ -99,6 +101,11 @@ import org.knime.core.util.Pair;
  * @noinstantiate This class is not intended to be instantiated by clients.
  */
 public final class RearrangeColumnsTable implements KnowsRowCountTable {
+
+    /**
+     *
+     */
+    private static final String CONTAINER_TYPE_FASTTABLE = "CONTAINER_TYPE_FASTTABLE";
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RearrangeColumnsTable.class);
 
@@ -215,12 +222,16 @@ public final class RearrangeColumnsTable implements KnowsRowCountTable {
                     }
                 }
 
-                // TODO this definitively SHOULDN't happen in here, but outside and append table should be handed to ColumnRearranger.
                 assert index == appendColCount;
                 DataTableSpec appendSpec = new DataTableSpec(appendColSpecs);
-                CopyOnAccessTask noKeyBufferOnAccessTask =
-                    new CopyOnAccessTask(f, appendSpec, tableID, dataRepository, false);
-                m_appendTable = DataContainer.readFromZipDelayed(noKeyBufferOnAccessTask, appendSpec);
+                // TODO this definitively SHOULDN't happen in here, but outside and append table should be handed to ColumnRearranger.
+                if (settings.containsKey(CONTAINER_TYPE_FASTTABLE) && settings.getBoolean(CONTAINER_TYPE_FASTTABLE)) {
+                    m_appendTable = FastTables.readFromFileDelayed(f, appendSpec, tableID, dataRepository, settings);
+                } else {
+                    final CopyOnAccessTask noKeyBufferOnAccessTask =
+                        new CopyOnAccessTask(f, appendSpec, tableID, dataRepository, false);
+                    m_appendTable = DataContainer.readFromZipDelayed(noKeyBufferOnAccessTask, appendSpec);
+                }
             }
         } else {
             m_appendTable = null;
@@ -652,13 +663,20 @@ public final class RearrangeColumnsTable implements KnowsRowCountTable {
     @Override
     public void saveToFile(final File f, final NodeSettingsWO s, final ExecutionMonitor exec)
         throws IOException, CanceledExecutionException {
+        // TODO we want to move all of this somewhere else. Rearrange column table shouldn't have to deal with distinction between fast table, buffered table etc.
         NodeSettingsWO subSettings = s.addNodeSettings(CFG_INTERNAL_META);
         subSettings.addInt(CFG_REFERENCE_ID, m_reference.getBufferedTableId());
         subSettings.addIntArray(CFG_MAP, m_map);
         subSettings.addBooleanArray(CFG_FLAGS, m_isFromRefTable);
         if (m_appendTable != null) {
             // subSettings argument is ignored in ContainerTable
-            m_appendTable.saveToFile(f, subSettings, exec);
+            if (m_appendTable instanceof FastTable) {
+                s.addBoolean(CONTAINER_TYPE_FASTTABLE, true);
+                FastTables.saveToFile((FastTable)m_appendTable, f, s, exec);
+            } else {
+                s.addBoolean(CONTAINER_TYPE_FASTTABLE, false);
+                m_appendTable.saveToFile(f, subSettings, exec);
+            }
         }
     }
 
