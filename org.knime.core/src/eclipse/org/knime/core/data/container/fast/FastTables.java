@@ -65,6 +65,8 @@ import org.knime.core.data.container.RowContainer;
 import org.knime.core.data.container.filter.TableFilter;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.StringCell;
+import org.knime.core.data.preproc.PreProcTableStore;
+import org.knime.core.data.preproc.PreProcessingConfig;
 import org.knime.core.data.row.RowBatchReaderConfig;
 import org.knime.core.data.table.store.TableStore;
 import org.knime.core.data.table.store.TableStoreConfig;
@@ -76,8 +78,8 @@ import org.knime.core.internal.ReferencedFile;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.workflow.WorkflowDataRepository;
 
 /**
@@ -136,9 +138,9 @@ public class FastTables {
      * @throws IOException
      */
     @SuppressWarnings("resource")
-    public static void saveToFile(final FastTable delegate, final File outFile, final NodeSettings s,
+    // TODO move into fast table impl OR Ok like this?
+    public static void saveToFile(final FastTable delegate, final File outFile, final NodeSettingsWO s,
         final ExecutionMonitor exec) throws IOException, CanceledExecutionException {
-        // TODO AVOID cast.
         s.addString(FAST_TABLE_CONTAINER_TYPE, delegate.getStore().getFactory().getCanonicalName());
         s.addLong(FAST_TABLE_CONTAINER_SIZE, delegate.size());
         s.addBoolean(FAST_TABLE_CONTAINER_ROWKEY, delegate.isRowKeys());
@@ -158,15 +160,26 @@ public class FastTables {
     @SuppressWarnings("resource")
     public static FastRowContainer create(final int tableId, final DataTableSpec spec, final FastTableConfig config,
         final File dest, final boolean isRowKey) {
-        final TableStore store = TableStoreUtils
+        final TableStore store = new PreProcTableStore(TableStoreUtils
             .cache(FACTORIES[0].create(getFastTableSpec(spec, config.isRowKeyEnabled()), dest, new TableStoreConfig() {
 
                 @Override
                 public int getInitialChunkSize() {
                     // TODO make configurable
-                    return 64000;
+                    return 8_00_000;
                 }
-            }));
+            })), new PreProcessingConfig() {
+
+                @Override
+                public int[] getDomainEnabledIndices() {
+                    // TODO efficiency of course...
+                    int[] enabled = new int[spec.getNumColumns() - 1];
+                    for (int i = 0; i < enabled.length; i++) {
+                        enabled[i] = i + 1;
+                    }
+                    return enabled;
+                }
+            });
         return new FastRowContainer(tableId, spec, store, isRowKey);
     }
 
